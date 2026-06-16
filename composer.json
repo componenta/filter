@@ -1,0 +1,16 @@
+{
+    "name": "componenta/filter",
+    "description": "Composable filters for Componenta class discovery and reflection workflows",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4",
+        "componenta/arrayable": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Componenta\\Filter\\": "src/"
+        }
+    },
+    "minimum-stability": "stable"
+}
