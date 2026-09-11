@@ -10,7 +10,7 @@ final class ClassAliasFilterFixture
 {
 }
 
-it('treats a class alias as the same concrete class', function (): void {
+it('treats aliases and case variants as the same concrete class', function (): void {
     $alias = 'ComponentaFilterClassAliasFixture';
 
     if (!class_exists($alias, false)) {
@@ -19,8 +19,36 @@ it('treats a class alias as the same concrete class', function (): void {
 
     $object = new ClassAliasFilterFixture();
     $reflection = new ReflectionClass(ClassAliasFilterFixture::class);
+    $lowercase = strtolower(ClassAliasFilterFixture::class);
 
     expect((new ConcreteClassFilter($alias))->accept($object))->toBeTrue()
         ->and((new AnyClassFilter([$alias]))->accept($object))->toBeTrue()
-        ->and((new ReflectionConcreteClassFilter([$alias]))->accept($reflection))->toBeTrue();
+        ->and((new ReflectionConcreteClassFilter([$alias]))->accept($reflection))->toBeTrue()
+        ->and((new ConcreteClassFilter($lowercase))->accept($object))->toBeTrue()
+        ->and((new AnyClassFilter([$lowercase]))->accept($object))->toBeTrue()
+        ->and((new ReflectionConcreteClassFilter([$lowercase]))->accept($reflection))->toBeTrue();
+});
+
+it('does not autoload unknown exact-class candidates', function (): void {
+    $autoloads = 0;
+    $missing = 'DefinitelyMissingComponentaConcreteClass';
+    $loader = static function (string $class) use (&$autoloads, $missing): void {
+        if ($class === $missing) {
+            $autoloads++;
+        }
+    };
+
+    spl_autoload_register($loader);
+
+    try {
+        $object = new ClassAliasFilterFixture();
+        $reflection = new ReflectionClass(ClassAliasFilterFixture::class);
+
+        expect((new ConcreteClassFilter($missing))->accept($object))->toBeFalse()
+            ->and((new AnyClassFilter([$missing]))->accept($object))->toBeFalse()
+            ->and((new ReflectionConcreteClassFilter([$missing]))->accept($reflection))->toBeFalse()
+            ->and($autoloads)->toBe(0);
+    } finally {
+        spl_autoload_unregister($loader);
+    }
 });
