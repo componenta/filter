@@ -13,6 +13,10 @@ final class MaxLengthFilter extends AbstractFilter
         private readonly int $maxLength,
         iterable $iterable = []
     ) {
+        if ($maxLength < 0) {
+            throw new \InvalidArgumentException('Maximum length must be non-negative');
+        }
+
         parent::__construct($iterable);
     }
 
