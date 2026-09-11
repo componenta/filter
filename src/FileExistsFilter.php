@@ -11,6 +11,8 @@ final class FileExistsFilter extends AbstractFilter
 {
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return file_exists((string) $value);
+        $path = StringValue::from($value);
+
+        return $path !== null && file_exists($path);
     }
 }
