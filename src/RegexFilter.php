@@ -13,6 +13,10 @@ final class RegexFilter extends AbstractFilter
         private readonly string $pattern,
         iterable $iterable = []
     ) {
+        if (@preg_match($pattern, '') === false) {
+            throw new \InvalidArgumentException(sprintf('Invalid regular expression: %s', $pattern));
+        }
+
         parent::__construct($iterable);
     }
 
