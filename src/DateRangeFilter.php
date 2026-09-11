@@ -9,10 +9,13 @@ namespace Componenta\Filter;
  *
  * Local date strings are interpreted in the timezone captured by the filter.
  * Relative date expressions are intentionally unsupported. Comparisons retain
- * microsecond precision.
+ * microsecond precision. Local wall times that do not exist because of a
+ * timezone transition are rejected instead of being normalized silently.
  */
 final class DateRangeFilter extends AbstractFilter
 {
+    private const string ABSOLUTE_DATE_PATTERN = '/^(?<date>\d{4}-\d{2}-\d{2})(?:(?:[ T])(?<time>\d{2}:\d{2}:\d{2})(?<fraction>\.\d{1,6})?(?<offset>Z|[+-]\d{2}:\d{2})?)?$/D';
+
     private readonly \DateTimeImmutable $minDate;
     private readonly \DateTimeImmutable $maxDate;
     private readonly \DateTimeZone $timezone;
@@ -115,8 +118,10 @@ final class DateRangeFilter extends AbstractFilter
         $value = trim($value);
 
         if ($value === '' || preg_match(
-            '/^\d{4}-\d{2}-\d{2}(?:(?:[ T])\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})?)?$/D',
+            self::ABSOLUTE_DATE_PATTERN,
             $value,
+            $matches,
+            PREG_UNMATCHED_AS_NULL,
         ) !== 1) {
             return null;
         }
@@ -133,7 +138,44 @@ final class DateRangeFilter extends AbstractFilter
             return null;
         }
 
+        if (($matches['offset'] ?? null) === null
+            && !self::matchesLocalWallTime($date, $matches)
+        ) {
+            return null;
+        }
+
         return $date;
+    }
+
+    /**
+     * @param array<string, string|null> $matches
+     */
+    private static function matchesLocalWallTime(
+        \DateTimeImmutable $date,
+        array $matches,
+    ): bool {
+        $time = $matches['time'] ?? null;
+
+        if ($time === null) {
+            return $date->format('Y-m-d') === $matches['date'];
+        }
+
+        $fraction = $matches['fraction'] ?? null;
+
+        if ($fraction === null) {
+            return $date->format('Y-m-d H:i:s') === sprintf(
+                '%s %s',
+                $matches['date'],
+                $time,
+            );
+        }
+
+        return $date->format('Y-m-d H:i:s.u') === sprintf(
+            '%s %s.%s',
+            $matches['date'],
+            $time,
+            str_pad(substr($fraction, 1), 6, '0'),
+        );
     }
 
     /** @return -1|0|1 */
