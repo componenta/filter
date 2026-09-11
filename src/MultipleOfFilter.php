@@ -13,6 +13,10 @@ final class MultipleOfFilter extends AbstractFilter
         private readonly float $divisor,
         iterable $iterable = []
     ) {
+        if (!is_finite($divisor) || $divisor == 0.0) {
+            throw new \InvalidArgumentException('Divisor must be a finite non-zero number');
+        }
+
         parent::__construct($iterable);
     }
 
@@ -28,11 +32,25 @@ final class MultipleOfFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if (!is_numeric($value) || $this->divisor == 0.0) {
+        if (!is_numeric($value)) {
             return false;
         }
 
         $num = (float) $value;
-        return fmod($num, $this->divisor) === 0.0;
+
+        if (!is_finite($num)) {
+            return false;
+        }
+
+        $quotient = $num / $this->divisor;
+
+        if (!is_finite($quotient)) {
+            return false;
+        }
+
+        $nearestInteger = round($quotient);
+        $tolerance = PHP_FLOAT_EPSILON * max(1.0, abs($quotient)) * 8;
+
+        return abs($quotient - $nearestInteger) <= $tolerance;
     }
 }
