@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 use Componenta\Filter\IntFilter;
 use Componenta\Filter\MergingFilter;
+use Componenta\Filter\PercentageFilter;
 use Componenta\Filter\StringFilter;
 
-it('accepts values accepted by at least one merged filter', function (): void {
-    $filter = new MergingFilter(new IntFilter(), new StringFilter());
+it('concatenates arbitrary collection filters in order', function (): void {
+    $filter = new MergingFilter(
+        new IntFilter([1, 'one']),
+        new PercentageFilter(50, ['a', 'b', 'c', 'd']),
+    );
 
-    expect($filter->accept(1))->toBeTrue()
-        ->and($filter->accept('one'))->toBeTrue()
-        ->and($filter->accept([]))->toBeFalse()
-        ->and((new MergingFilter())->accept('anything'))->toBeFalse();
+    expect($filter->toArray())->toBe([1, 'a', 'b']);
 });
 
 it('returns a new merge with the iterable applied to every inner filter', function (): void {
@@ -41,4 +42,16 @@ it('replays a one-shot iterable for every merged filter', function (): void {
         'integer' => 2,
         'string' => 'two',
     ]);
+});
+
+it('adds and removes collection filters immutably', function (): void {
+    $integers = new IntFilter([1]);
+    $strings = new StringFilter(['one']);
+    $base = new MergingFilter($integers);
+    $added = $base->withFilter($strings);
+    $removed = $added->withoutFilter($integers);
+
+    expect($base->getFilters())->toBe([$integers])
+        ->and($added->getFilters())->toBe([$integers, $strings])
+        ->and($removed->getFilters())->toBe([$strings]);
 });
