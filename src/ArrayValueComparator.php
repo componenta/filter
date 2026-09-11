@@ -41,7 +41,7 @@ final class ArrayValueComparator
 
     private static function comparisonString(mixed $value): ?string
     {
-        if ($value === null || is_scalar($value)) {
+        if ($value === null || is_scalar($value) || is_resource($value)) {
             return (string) $value;
         }
 
