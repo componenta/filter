@@ -70,8 +70,6 @@ final class PropertyEqualsFilter extends AbstractFilter
 
         $propertyValue = $property->getValue($value);
 
-        return $this->strict
-            ? $propertyValue === $this->expected
-            : $propertyValue == $this->expected;
+        return ValueComparator::equals($propertyValue, $this->expected, $this->strict);
     }
 }
