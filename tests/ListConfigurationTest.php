@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Componenta\Filter\AnyClassFilter;
 use Componenta\Filter\FileExtensionFilter;
 use Componenta\Filter\InstanceofAnyFilter;
+use Componenta\Filter\KeyExcludeFilter;
+use Componenta\Filter\KeyInFilter;
 use Componenta\Filter\ReflectionConcreteClassFilter;
 use Componenta\Filter\StringEqualsAnyFilter;
 
@@ -26,4 +28,12 @@ it('rejects non-string concrete class allow-list values', function (): void {
 
 it('rejects non-string reflection class allow-list values', function (): void {
     new ReflectionConcreteClassFilter([stdClass::class, []]);
+})->throws(InvalidArgumentException::class);
+
+it('rejects values that cannot be iterable keys in key allow-lists', function (): void {
+    new KeyInFilter(['valid', 1, null, []]);
+})->throws(InvalidArgumentException::class);
+
+it('rejects values that cannot be iterable keys in key deny-lists', function (): void {
+    new KeyExcludeFilter(['valid', new stdClass()]);
 })->throws(InvalidArgumentException::class);
