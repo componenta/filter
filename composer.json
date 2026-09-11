@@ -1,11 +1,18 @@
 {
     "name": "componenta/filter",
-    "description": "Composable filters for Componenta class discovery and reflection workflows",
+    "description": "Composable predicates and collection filters for Componenta",
     "type": "library",
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/componenta/iterator"
+        }
+    ],
     "require": {
         "php": "^8.4",
-        "componenta/arrayable": "^1.0"
+        "componenta/arrayable": "^1.0",
+        "componenta/iterator": "dev-fix/replayable-independent-cursors-20260911 as 1.1.0"
     },
     "require-dev": {
         "pestphp/pest": "^5.0"
