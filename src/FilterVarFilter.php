@@ -58,12 +58,13 @@ final class FilterVarFilter extends AbstractFilter
         $result = filter_var($value, $this->filter, $options);
         $flags = self::flags($options);
         $arrayMode = ($flags & (FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY)) !== 0;
+        $nullOnFailure = self::returnsNullOnFailure($this->filter, $flags);
 
         if ($arrayMode) {
-            return is_array($result) && !self::containsFailure($result, $boolean);
+            return is_array($result) && !self::containsFailure($result, $nullOnFailure);
         }
 
-        return $boolean ? $result !== null : $result !== false;
+        return $nullOnFailure ? $result !== null : $result !== false;
     }
 
     private static function isKnownFilter(int $filter): bool
@@ -109,18 +110,37 @@ final class FilterVarFilter extends AbstractFilter
         return is_int($options) ? $options : ($options['flags'] ?? 0);
     }
 
-    private static function containsFailure(array $values, bool $boolean): bool
+    private static function returnsNullOnFailure(int $filter, int $flags): bool
+    {
+        if (($flags & FILTER_NULL_ON_FAILURE) === 0) {
+            return false;
+        }
+
+        return in_array($filter, [
+            FILTER_VALIDATE_INT,
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_VALIDATE_FLOAT,
+            FILTER_VALIDATE_REGEXP,
+            FILTER_VALIDATE_DOMAIN,
+            FILTER_VALIDATE_URL,
+            FILTER_VALIDATE_EMAIL,
+            FILTER_VALIDATE_IP,
+            FILTER_VALIDATE_MAC,
+        ], true);
+    }
+
+    private static function containsFailure(array $values, bool $nullOnFailure): bool
     {
         foreach ($values as $value) {
             if (is_array($value)) {
-                if (self::containsFailure($value, $boolean)) {
+                if (self::containsFailure($value, $nullOnFailure)) {
                     return true;
                 }
 
                 continue;
             }
 
-            if ($boolean ? $value === null : $value === false) {
+            if ($nullOnFailure ? $value === null : $value === false) {
                 return true;
             }
         }

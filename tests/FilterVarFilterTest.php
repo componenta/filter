@@ -23,6 +23,41 @@ it('keeps zero default flags when boolean options are passed as an array', funct
         ->and($filter->accept('not-a-boolean'))->toBeFalse();
 });
 
+it('treats FILTER_NULL_ON_FAILURE as the validation failure sentinel', function (): void {
+    $scalar = new FilterVarFilter(
+        FILTER_VALIDATE_INT,
+        FILTER_NULL_ON_FAILURE,
+    );
+    $requiredArray = new FilterVarFilter(
+        FILTER_VALIDATE_INT,
+        ['flags' => FILTER_REQUIRE_ARRAY | FILTER_NULL_ON_FAILURE],
+    );
+    $forcedArray = new FilterVarFilter(
+        FILTER_VALIDATE_INT,
+        ['flags' => FILTER_FORCE_ARRAY | FILTER_NULL_ON_FAILURE],
+    );
+
+    expect($scalar->accept('42'))->toBeTrue()
+        ->and($scalar->accept('bad'))->toBeFalse()
+        ->and($requiredArray->accept([1, '2', 3]))->toBeTrue()
+        ->and($requiredArray->accept([1, 'bad', 3]))->toBeFalse()
+        ->and($forcedArray->accept('42'))->toBeTrue()
+        ->and($forcedArray->accept('bad'))->toBeFalse();
+});
+
+it('does not reinterpret callback null results as validation failure', function (): void {
+    $filter = new FilterVarFilter(
+        FILTER_CALLBACK,
+        [
+            'flags' => FILTER_NULL_ON_FAILURE,
+            'options' => static fn(mixed $value): mixed => $value === 'null' ? null : false,
+        ],
+    );
+
+    expect($filter->accept('null'))->toBeTrue()
+        ->and($filter->accept('false'))->toBeFalse();
+});
+
 it('validates every member and required shape in filter_var array mode', function (): void {
     $integers = new FilterVarFilter(
         FILTER_VALIDATE_INT,
