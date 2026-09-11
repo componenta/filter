@@ -87,9 +87,9 @@ final class RandomFilter extends AbstractFilter
             return new Randomizer(clone $engine);
         }
 
-        // A custom uncloneable engine cannot be duplicated generically. Keep
-        // the explicit caller-provided engine rather than silently changing
-        // the source of randomness.
-        return new Randomizer($engine);
+        throw new \LogicException(sprintf(
+            'Random engine %s cannot be copied immutably',
+            $engine::class,
+        ));
     }
 }
