@@ -101,6 +101,20 @@ it('rejects ambiguous local times in a DST overlap unless an offset is explicit'
         ->and($filter->accept('2026-10-25T02:30:00+01:00'))->toBeTrue();
 });
 
+it('treats date-only input as strict local midnight across timezone transitions', function (): void {
+    expect(fn() => new DateRangeFilter(
+        '2023-04-28',
+        '2023-04-29',
+        timezone: new DateTimeZone('Africa/Cairo'),
+    ))->toThrow(InvalidArgumentException::class);
+
+    expect(fn() => new DateRangeFilter(
+        '2020-11-01',
+        '2020-11-02',
+        timezone: new DateTimeZone('America/Havana'),
+    ))->toThrow(InvalidArgumentException::class);
+});
+
 it('accepts DateTimeInterface values without reparsing through strings', function (): void {
     $filter = new DateRangeFilter(
         new DateTimeImmutable('2026-06-01T10:00:00+00:00'),
