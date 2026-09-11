@@ -11,6 +11,8 @@ final class DirectoryFilter extends AbstractFilter
 {
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return is_dir((string) $value);
+        $path = StringValue::from($value);
+
+        return $path !== null && is_dir($path);
     }
 }
