@@ -36,6 +36,29 @@ it('retains scalar string-comparison compatibility', function (): void {
         ->and((new ArrayDiffFilter([1]))->accept(['1']))->toBeFalse();
 });
 
+it('checks later scalar candidates after an earlier string mismatch', function (): void {
+    expect((new ArrayIntersectFilter(['miss', 'match']))->accept(['match']))->toBeTrue()
+        ->and((new ArrayDiffFilter(['miss', 'match']))->accept(['match']))->toBeFalse();
+});
+
+it('compares Stringable values by their string representation', function (): void {
+    $stringable = static fn(string $value): Stringable => new class($value) implements Stringable {
+        public function __construct(private readonly string $value)
+        {
+        }
+
+        public function __toString(): string
+        {
+            return $this->value;
+        }
+    };
+
+    $needle = $stringable('match');
+
+    expect((new ArrayIntersectFilter([$stringable('miss'), $stringable('match')]))->accept([$needle]))->toBeTrue()
+        ->and((new ArrayDiffFilter([$stringable('miss'), $stringable('match')]))->accept([$needle]))->toBeFalse();
+});
+
 it('retains PHP resource string-comparison compatibility', function (): void {
     $resource = fopen('php://memory', 'r');
 
