@@ -32,6 +32,12 @@ final class ArrayIntersectFilter extends AbstractFilter
             return false;
         }
 
-        return count(array_intersect($value, $this->allowed)) > 0;
+        foreach ($value as $item) {
+            if (ArrayValueComparator::contains($this->allowed, $item)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
