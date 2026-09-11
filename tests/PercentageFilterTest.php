@@ -12,6 +12,14 @@ it('keeps the requested percentage from the beginning of an array', function ():
 
 it('uses floor semantics for fractional allowed counts', function (): void {
     expect((new PercentageFilter(50, ['a', 'b', 'c']))->toArray())->toBe(['a']);
+
+    $generator = (static function (): Generator {
+        yield 'a';
+        yield 'b';
+        yield 'c';
+    })();
+
+    expect((new PercentageFilter(50, $generator))->toArray())->toBe(['a']);
 });
 
 it('handles exact percentage boundaries without off-by-one behavior', function (): void {
@@ -21,6 +29,38 @@ it('handles exact percentage boundaries without off-by-one behavior', function (
         ->and((new PercentageFilter(1, $hundred))->toArray())->toBe([1])
         ->and((new PercentageFilter(99, $hundred))->toArray())->toBe(range(1, 99))
         ->and((new PercentageFilter(100, $hundred))->toArray())->toBe($hundred);
+});
+
+it('does not consume a generic source at zero percent', function (): void {
+    $visited = 0;
+    $source = (static function () use (&$visited): Generator {
+        foreach ([1, 2, 3] as $value) {
+            $visited++;
+            yield $value;
+        }
+    })();
+
+    expect((new PercentageFilter(0, $source))->toArray())->toBe([])
+        ->and($visited)->toBe(0);
+});
+
+it('streams a generic source at one hundred percent', function (): void {
+    $visited = 0;
+    $source = (static function () use (&$visited): Generator {
+        foreach ([1, 2, 3] as $value) {
+            $visited++;
+            yield $value;
+        }
+    })();
+
+    $iterator = (new PercentageFilter(100, $source))->getIterator();
+
+    expect($visited)->toBe(0);
+
+    $iterator->rewind();
+
+    expect($iterator->current())->toBe(1)
+        ->and($visited)->toBe(1);
 });
 
 it('does not collapse repeated generator keys before calculating the percentage', function (): void {
