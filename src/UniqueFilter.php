@@ -28,9 +28,21 @@ final class UniqueFilter extends AbstractFilter
 
     public function getIterator(): \Generator
     {
+        $this->seen = [];
+
+        return self::iterateUnique($this->iterable);
+    }
+
+    public function __clone(): void
+    {
+        $this->seen = [];
+    }
+
+    private static function iterateUnique(iterable $iterable): \Generator
+    {
         $seen = [];
 
-        foreach ($this->iterable as $key => $value) {
+        foreach ($iterable as $key => $value) {
             if (in_array($value, $seen, true)) {
                 continue;
             }
@@ -38,10 +50,5 @@ final class UniqueFilter extends AbstractFilter
             $seen[] = $value;
             yield $key => $value;
         }
-    }
-
-    public function __clone(): void
-    {
-        $this->seen = [];
     }
 }
