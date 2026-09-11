@@ -39,7 +39,12 @@ final class EndsWithFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        $stringValue = (string) $value;
+        $stringValue = StringValue::from($value);
+
+        if ($stringValue === null) {
+            return false;
+        }
+
         $suffixLen = strlen($this->suffix);
 
         if ($suffixLen === 0) {
