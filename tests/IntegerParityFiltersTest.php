@@ -28,6 +28,19 @@ it('determines parity of exact decimal and scientific integer strings without fl
         ->and($odd->accept('1.5e0'))->toBeFalse();
 });
 
+it('handles decimal shifts and arbitrarily large exponents without overflow', function (): void {
+    $even = new EvenNumberFilter();
+    $odd = new OddNumberFilter();
+
+    expect($odd->accept('.5e1'))->toBeTrue()
+        ->and($odd->accept('30e-1'))->toBeTrue()
+        ->and($odd->accept('1000e-3'))->toBeTrue()
+        ->and($even->accept('0e-999999999999999999999'))->toBeTrue()
+        ->and($even->accept('1e999999999999999999999'))->toBeTrue()
+        ->and($even->accept('1e-999999999999999999999'))->toBeFalse()
+        ->and($odd->accept('1e-999999999999999999999'))->toBeFalse();
+});
+
 it('continues to accept integral numeric forms and reject fractions', function (): void {
     $even = new EvenNumberFilter();
     $odd = new OddNumberFilter();
