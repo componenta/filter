@@ -66,15 +66,12 @@ class OneOfFilter extends AbstractFilter implements FilterableInterface
      */
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if (empty($this->filters)) {
-            return true;
-        }
-
         foreach ($this->filters as $filter) {
             if ($filter->accept($value, $key)) {
                 return true;
             }
         }
+
         return false;
     }
 }
