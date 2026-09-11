@@ -10,34 +10,30 @@ namespace Componenta\Filter;
 final class LessThanEqualsFilter extends AbstractFilter
 {
     public function __construct(
-        private readonly float $threshold,
+        private readonly int|float|string $threshold,
         iterable $iterable = []
     ) {
-        if (!is_finite($threshold)) {
-            throw new \InvalidArgumentException('Threshold must be finite');
+        if (!NumericValueComparator::isValid($threshold)) {
+            throw new \InvalidArgumentException('Threshold must be a valid numeric value');
         }
 
         parent::__construct($iterable);
     }
 
-    public function withThreshold(float $threshold): static
+    public function withThreshold(int|float|string $threshold): static
     {
         return new self($threshold, $this->iterable);
     }
 
-    public function getThreshold(): float
+    public function getThreshold(): int|float|string
     {
         return $this->threshold;
     }
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if (!is_numeric($value)) {
-            return false;
-        }
+        $comparison = NumericValueComparator::compare($value, $this->threshold);
 
-        $number = (float) $value;
-
-        return is_finite($number) && $number <= $this->threshold;
+        return $comparison !== null && $comparison <= 0;
     }
 }
