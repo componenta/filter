@@ -76,7 +76,13 @@ final class DateRangeFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        $timestamp = strtotime((string) $value);
+        $date = StringValue::from($value);
+
+        if ($date === null) {
+            return false;
+        }
+
+        $timestamp = strtotime($date);
 
         if ($timestamp === false) {
             return false;
