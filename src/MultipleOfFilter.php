@@ -71,6 +71,11 @@ final class MultipleOfFilter extends AbstractFilter
         }
 
         $nearestInteger = round($quotient);
+
+        if (($nearestInteger * $divisor) === $number) {
+            return true;
+        }
+
         $scaledTolerance = PHP_FLOAT_EPSILON * max(1.0, abs($quotient)) * 8;
         $tolerance = min(1.0e-9, $scaledTolerance);
 

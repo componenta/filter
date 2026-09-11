@@ -19,6 +19,13 @@ it('falls back to float tolerance when exactly one operand is a float', function
         ->and((new MultipleOfFilter(0.1))->accept('0.30000000000000004'))->toBeTrue();
 });
 
+it('accepts large float multiples without an absolute quotient cap', function (): void {
+    $divisor = 1.7833960000000006e238;
+    $value = $divisor * 504_415_491;
+
+    expect((new MultipleOfFilter($divisor))->accept($value))->toBeTrue();
+});
+
 it('does not let floating-point tolerance swallow a real fractional remainder', function (): void {
     $filter = new MultipleOfFilter(1.0);
 
