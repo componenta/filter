@@ -39,6 +39,6 @@ final class NotEqualsAnyFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return !in_array($value, $this->expected, $this->strict);
+        return !ValueComparator::contains($this->expected, $value, $this->strict);
     }
 }
