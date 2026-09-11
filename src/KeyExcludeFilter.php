@@ -13,6 +13,7 @@ final class KeyExcludeFilter extends AbstractFilter
         private readonly array $excludedKeys,
         iterable $iterable = []
     ) {
+        KeyList::assert($excludedKeys, 'excludedKeys');
         parent::__construct($iterable);
     }
 
