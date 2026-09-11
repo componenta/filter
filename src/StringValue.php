@@ -13,14 +13,12 @@ final class StringValue
 
     public static function from(mixed $value): ?string
     {
-        if (is_array($value)) {
-            return null;
+        if (is_string($value)) {
+            return $value;
         }
 
-        if (is_object($value) && !$value instanceof \Stringable) {
-            return null;
-        }
-
-        return (string) $value;
+        return $value instanceof \Stringable
+            ? (string) $value
+            : null;
     }
 }
