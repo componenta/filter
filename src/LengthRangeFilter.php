@@ -14,6 +14,10 @@ final class LengthRangeFilter extends AbstractFilter
         private readonly int $maxLength,
         iterable $iterable = []
     ) {
+        if ($minLength < 0 || $maxLength < 0 || $minLength > $maxLength) {
+            throw new \InvalidArgumentException('Lengths must be non-negative and minLength must not exceed maxLength');
+        }
+
         parent::__construct($iterable);
     }
 
