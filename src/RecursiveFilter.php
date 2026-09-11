@@ -44,7 +44,7 @@ final class RecursiveFilter extends AbstractFilter
                 $nested = $this->withIterable($value);
 
                 if ($this->yieldNestedAsArray) {
-                    yield $key => $nested->toArray();
+                    yield $key => $nested->toArray(true);
                 } else {
                     yield from $nested->getIterator();
                 }
