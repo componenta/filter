@@ -29,6 +29,17 @@ it('treats aliases and case variants as the same concrete class', function (): v
         ->and((new ReflectionConcreteClassFilter([$lowercase]))->accept($reflection))->toBeTrue();
 });
 
+it('does not accept an unloaded near-name concrete class candidate', function (): void {
+    $missing = substr(ClassAliasFilterFixture::class, 0, -1) . 'd';
+    $object = new ClassAliasFilterFixture();
+    $reflection = new ReflectionClass(ClassAliasFilterFixture::class);
+
+    expect(class_exists($missing, false))->toBeFalse()
+        ->and((new ConcreteClassFilter($missing))->accept($object))->toBeFalse()
+        ->and((new AnyClassFilter([$missing]))->accept($object))->toBeFalse()
+        ->and((new ReflectionConcreteClassFilter([$missing]))->accept($reflection))->toBeFalse();
+});
+
 it('does not autoload unknown exact-class candidates', function (): void {
     $autoloads = 0;
     $missing = 'DefinitelyMissingComponentaConcreteClass';
