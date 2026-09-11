@@ -11,11 +11,13 @@ use Componenta\Filter\NotFilter;
 use Componenta\Filter\PercentageFilter;
 use Componenta\Filter\PredicateInterface;
 use Componenta\Filter\RecursiveFilter;
+use Componenta\Filter\UniqueFilter;
 
 it('separates predicate-backed filters from collection-only operators', function (): void {
     $filter = new IntFilter([1, 'two']);
     $percentage = new PercentageFilter(50, [1, 2, 3, 4]);
-    $merging = new MergingFilter($filter, $percentage);
+    $unique = new UniqueFilter([1, 1, 2]);
+    $merging = new MergingFilter($filter, $percentage, $unique);
 
     expect($filter)->toBeInstanceOf(PredicateInterface::class)
         ->and($filter)->toBeInstanceOf(CollectionFilterInterface::class)
@@ -23,6 +25,9 @@ it('separates predicate-backed filters from collection-only operators', function
         ->and($percentage)->toBeInstanceOf(CollectionFilterInterface::class)
         ->and($percentage)->not->toBeInstanceOf(PredicateInterface::class)
         ->and($percentage)->not->toBeInstanceOf(FilterInterface::class)
+        ->and($unique)->toBeInstanceOf(CollectionFilterInterface::class)
+        ->and($unique)->not->toBeInstanceOf(PredicateInterface::class)
+        ->and($unique)->not->toBeInstanceOf(FilterInterface::class)
         ->and($merging)->toBeInstanceOf(CollectionFilterInterface::class)
         ->and($merging)->not->toBeInstanceOf(PredicateInterface::class)
         ->and($merging)->not->toBeInstanceOf(FilterInterface::class);
@@ -46,7 +51,8 @@ it('merges arbitrary collection filters without inventing predicate semantics', 
     $filter = new MergingFilter(
         new IntFilter([1, 'two']),
         new PercentageFilter(50, ['a', 'b', 'c', 'd']),
+        new UniqueFilter([1, 1, 2]),
     );
 
-    expect($filter->toArray())->toBe([1, 'a', 'b']);
+    expect($filter->toArray())->toBe([1, 'a', 'b', 1, 2]);
 });
