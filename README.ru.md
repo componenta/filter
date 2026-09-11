@@ -12,20 +12,19 @@ composer require componenta/filter
 
 - PHP 8.4+
 - `componenta/arrayable`
+- `componenta/iterator`
 
 ## Контракты
 
 Во второй major-версии разделены проверка отдельного значения и операции над коллекцией.
 
-- `PredicateInterface` содержит только `accept()` и используется там, где значение можно проверить независимо от коллекции.
-- `CollectionFilterInterface` описывает работу с iterable через `getIterator()`, `withIterable()` и `toArray()`.
-- `FilterInterface` расширяет оба интерфейса и представляет обычный predicate-backed фильтр коллекции.
-- `AbstractCollectionFilter` реализует общую иммутабельную привязку iterable и `toArray()` для collection-only операторов.
-- `AbstractFilter` расширяет `AbstractCollectionFilter` и добавляет фильтрацию на основе предиката.
+- `PredicateInterface` содержит только `accept()` и применяется там, где одно значение можно оценить без контекста коллекции.
+- `CollectionFilterInterface` описывает обработку коллекции через `getIterator()`, `withIterable()` и `toArray()`.
+- `FilterInterface` расширяет оба интерфейса и представляет predicate-backed фильтр коллекции.
+- `AbstractCollectionFilter` реализует иммутабельную привязку iterable и `toArray()` для collection-only операторов.
+- `AbstractFilter` расширяет `AbstractCollectionFilter` и добавляет predicate-backed итерацию.
 
-Благодаря этому операторы, зависящие от всей коллекции, больше не обязаны иметь искусственный `accept()`.
-
-## Обычная фильтрация
+## Predicate-backed фильтры
 
 ```php
 use Componenta\Filter\StringFilter;
@@ -36,15 +35,11 @@ $filter->accept('value'); // true
 $filter->toArray();       // ['one', 'three']
 ```
 
-Ключи по умолчанию не сохраняются:
+Строковые предикаты принимают только `string` и `Stringable`. Числа, boolean и другие скаляры больше не приводятся к строке неявно.
 
-```php
-$filter->toArray(preserveKeys: true);
-```
+## Чистые предикаты и композиция
 
-## Чистые предикаты
-
-Для композиции больше не требуется реализовывать iterable-контракт:
+Пользовательскому предикату больше не требуется iterable-контракт:
 
 ```php
 use Componenta\Filter\ChainableFilter;
@@ -57,69 +52,84 @@ $positiveInteger = new class implements PredicateInterface {
     }
 };
 
-$filter = ChainableFilter::create($positiveInteger);
+$filter = new ChainableFilter($positiveInteger);
 $filter->accept(10); // true
 ```
 
-`Filterable`, `ChainableFilter`, `OneOfFilter`, `NotFilter` и `RecursiveFilter` теперь зависят от `PredicateInterface`, а не от `FilterInterface`.
+`Filterable`, `ChainableFilter`, `OneOfFilter`, `NotFilter` и `RecursiveFilter` зависят от `PredicateInterface`. `Filterable` и `ChainableFilter` используют AND-семантику; `OneOfFilter` — OR-семантику, а пустой `OneOfFilter` отклоняет любое значение.
 
 ## Collection-only операторы
 
-`PercentageFilter` реализует только `CollectionFilterInterface`, поскольку его результат зависит от размера и позиции элементов всей коллекции:
+Следующие операторы намеренно не реализуют `PredicateInterface`:
 
-```php
-use Componenta\Filter\PercentageFilter;
-
-$filter = new PercentageFilter(50, ['a', 'b', 'c', 'd']);
-$filter->toArray(); // ['a', 'b']
-```
-
-Метода `accept()` у него больше нет.
-
-`MergingFilter` также является collection-only оператором. Он объединяет результаты любых реализаций `CollectionFilterInterface`, включая другие collection-only операторы:
+- `PercentageFilter`: результат зависит от размера коллекции и позиции элемента;
+- `UniqueFilter`: уникальность зависит от значений, уже встреченных в текущем обходе;
+- `MergingFilter`: объединяет результаты нескольких `CollectionFilterInterface`.
 
 ```php
 use Componenta\Filter\IntFilter;
 use Componenta\Filter\MergingFilter;
 use Componenta\Filter\PercentageFilter;
+use Componenta\Filter\UniqueFilter;
 
 $filter = new MergingFilter(
     new IntFilter([1, 'two']),
     new PercentageFilter(50, ['a', 'b', 'c', 'd']),
+    new UniqueFilter([1, 1, 2]),
 );
 
-$filter->toArray(); // [1, 'a', 'b']
+$filter->toArray(); // [1, 'a', 'b', 1, 2]
 ```
 
-`withIterable()` заменяет источник у всех объединённых collection filters и при необходимости делает одноразовый iterable переигрываемым.
+`MergingFilter::withIterable()` использует `ReplayableIterator`: одноразовый generator не читается в момент привязки, а каждый вложенный фильтр получает независимый ленивый replay-cursor.
 
-## Композиция предикатов
+## Точные числовые предикаты
 
-Объекты с `Filterable` возвращают новые экземпляры при добавлении или удалении предикатов:
+`NumericFilter`, `BetweenFilter`, `RangeFilter`, `GreaterThan*`, `LessThan*`, `MultipleOfFilter` и parity-фильтры не переводят numeric strings в `float` без необходимости.
+
+Поэтому большие целые, длинные десятичные строки и scientific notation сравниваются без потери точности после `2^53`. `NAN` и бесконечности отклоняются value-oriented числовыми предикатами. Настоящие PHP `float` сохраняют естественную для них двоичную точность; `MultipleOfFilter` использует ограниченный tolerance только когда проверяемое значение само является `float`.
+
+## Диапазоны дат
+
+`DateRangeFilter` принимает `DateTimeInterface` или абсолютные ISO-подобные строки даты/времени. Для локальных строк timezone фиксируется при создании фильтра. Сравнение сохраняет микросекунды. Относительные выражения вроде `tomorrow` и невозможные даты, которые PHP обычно нормализует, не принимаются.
 
 ```php
-$next = $filterable->withFilter($predicate);
-$sameWithout = $next->withoutFilter($predicate);
+$range = new DateRangeFilter(
+    '2026-01-01 00:00:00',
+    '2026-12-31 23:59:59',
+    timezone: new DateTimeZone('Europe/Copenhagen'),
+);
 ```
 
-`Filterable::accept()` использует AND-семантику. `OneOfFilter::accept()` использует OR-семантику и возвращает `false`, если предикаты не заданы.
+## Рекурсивная фильтрация
+
+`RecursiveFilter` обнаруживает циклы iterable-объектов и дополнительно ограничивает глубину через `maxDepth` (по умолчанию `64`), поэтому самоссылочные массивы также не могут привести к бесконечной рекурсии.
+
+```php
+$filter = new RecursiveFilter($predicate, maxDepth: 32);
+```
+
+## Случайная фильтрация
+
+`RandomFilter` использует изолированный `Random\Randomizer` и не изменяет глобальное состояние `mt_rand()`. Для воспроизводимой последовательности можно передать собственный `Randomizer` с детерминированным engine.
 
 ## Проверка конфигурации
 
-Некорректная конфигурация, при которой фильтр не может безопасно работать, отклоняется заранее через `InvalidArgumentException`: это касается диапазонов, регулярных выражений, конфигурации `filter_var()`, вероятностей, процентов и типизированных списков строк/имён классов.
+Некорректная конфигурация отклоняется заранее через `InvalidArgumentException`, если безопасное выполнение иначе невозможно. Это относится, в частности, к числовым и временным диапазонам, regex, `filter_var()` ID/options, вероятностям, процентам и типизированным спискам строк, классов и ключей.
 
 ## Breaking changes относительно 1.x
 
 - `FilterInterface` теперь является пересечением `PredicateInterface` и `CollectionFilterInterface`.
-- `PercentageFilter` больше не наследуется от `AbstractFilter` и не имеет `accept()`.
-- `MergingFilter` больше не реализует `FilterInterface` и не имеет `accept()`.
-- `MergingFilter` принимает любые `CollectionFilterInterface`, а не только predicate-backed фильтры.
-- API композиции принимает `PredicateInterface`, поэтому пользовательскому предикату больше не нужны iterable-методы.
-- `AbstractFilter` теперь наследуется от `AbstractCollectionFilter`.
+- `PercentageFilter`, `UniqueFilter` и `MergingFilter` являются collection-only и не имеют `accept()`.
+- API композиции принимает `PredicateInterface`; пользовательскому предикату больше не нужны iterable-методы.
+- `MergingFilter` принимает любые `CollectionFilterInterface` и лениво переигрывает одноразовые источники.
+- Строковые предикаты больше не приводят произвольные скаляры к строке.
+- Числовые границы принимают `int|float|string` и поддерживают точное decimal/scientific comparison.
+- `DateRangeFilter` использует абсолютный детерминированный parsing, зафиксированный timezone и микросекундную точность.
+- `RandomFilter` больше не потребляет глобальное состояние `mt_rand()`.
+- `RecursiveFilter` ограничивает глубину и обнаруживает циклы.
 
 ## Разработка
-
-Установите dev-зависимости и запустите Pest:
 
 ```bash
 composer install
