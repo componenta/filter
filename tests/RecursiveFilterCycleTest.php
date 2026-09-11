@@ -20,6 +20,21 @@ it('rejects recursive iterable object cycles deterministically', function (): vo
         ->toThrow(RuntimeException::class, 'Recursive iterable cycle detected');
 });
 
+it('bounds self-referential arrays by maximum depth', function (): void {
+    $cycle = [];
+    $cycle['value'] = 'accepted';
+    $cycle['self'] = &$cycle;
+
+    $filter = new RecursiveFilter(
+        new StringFilter(),
+        iterable: $cycle,
+        maxDepth: 3,
+    );
+
+    expect(fn() => iterator_to_array($filter->getIterator(), false))
+        ->toThrow(OverflowException::class, 'Maximum recursive filter depth of 3 exceeded');
+});
+
 it('limits recursive array depth instead of recursing indefinitely', function (): void {
     $value = 'accepted';
 
