@@ -13,6 +13,10 @@ final class ReflectionImplementingFilter extends AbstractFilter
         private readonly string $interfaceName,
         iterable $iterable = []
     ) {
+        if (!interface_exists($interfaceName)) {
+            throw new \InvalidArgumentException(sprintf('Unknown interface: %s', $interfaceName));
+        }
+
         parent::__construct($iterable);
     }
 
