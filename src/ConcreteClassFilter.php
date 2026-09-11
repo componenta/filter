@@ -28,10 +28,7 @@ final class ConcreteClassFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if (!is_object($value)) {
-            return false;
-        }
-
-        return $value::class === $this->className;
+        return is_object($value)
+            && ConcreteClassName::equals($value::class, $this->className);
     }
 }
