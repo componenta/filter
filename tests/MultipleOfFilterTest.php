@@ -14,6 +14,11 @@ it('accepts decimal multiples despite floating-point representation noise', func
         ->and($filter->accept(0.35))->toBeFalse();
 });
 
+it('falls back to float tolerance when exactly one operand is a float', function (): void {
+    expect((new MultipleOfFilter('0.1'))->accept(0.30000000000000004))->toBeTrue()
+        ->and((new MultipleOfFilter(0.1))->accept('0.30000000000000004'))->toBeTrue();
+});
+
 it('does not let floating-point tolerance swallow a real fractional remainder', function (): void {
     $filter = new MultipleOfFilter(1.0);
 
