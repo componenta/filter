@@ -26,3 +26,14 @@ it('resets uniqueness between complete iterations', function (): void {
     expect($filter->toArray())->toBe([1, 2])
         ->and($filter->toArray())->toBe([1, 2]);
 });
+
+it('preserves the direct accept state reset performed by getIterator', function (): void {
+    $filter = new UniqueFilter([2]);
+
+    expect($filter->accept(1))->toBeTrue()
+        ->and($filter->accept(1))->toBeFalse();
+
+    $filter->getIterator();
+
+    expect($filter->accept(1))->toBeTrue();
+});
