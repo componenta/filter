@@ -25,4 +25,15 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Run mutation audit
-        run: ./vendor/bin/pest --mutate --everything --parallel --covered-only
+        shell: bash
+        run: |
+          set -o pipefail
+          ./vendor/bin/pest --mutate --everything --parallel --covered-only 2>&1 | tee mutation-report.txt
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: mutation-report.txt
+          if-no-files-found: error
