@@ -13,6 +13,7 @@ final class AnyClassFilter extends AbstractFilter
         private readonly array $allowedClasses,
         iterable $iterable = []
     ) {
+        StringList::assert($allowedClasses, 'allowedClasses');
         parent::__construct($iterable);
     }
 
