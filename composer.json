@@ -11,6 +11,8 @@
     ],
     "require": {
         "php": "^8.4",
+        "ext-ctype": "*",
+        "ext-filter": "*",
         "componenta/arrayable": "^1.0",
         "componenta/iterator": "dev-fix/replayable-independent-cursors-20260911 as 1.1.0"
     },
