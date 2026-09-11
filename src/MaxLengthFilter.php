@@ -28,6 +28,8 @@ final class MaxLengthFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return strlen((string) $value) <= $this->maxLength;
+        $stringValue = StringValue::from($value);
+
+        return $stringValue !== null && strlen($stringValue) <= $this->maxLength;
     }
 }
