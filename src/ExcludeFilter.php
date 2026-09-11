@@ -39,6 +39,6 @@ final class ExcludeFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return !in_array($value, $this->excluded, $this->strict);
+        return !ValueComparator::contains($this->excluded, $value, $this->strict);
     }
 }
