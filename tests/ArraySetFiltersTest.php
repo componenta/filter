@@ -71,3 +71,14 @@ it('retains PHP resource string-comparison compatibility', function (): void {
         fclose($resource);
     }
 });
+
+
+it('retains PHP closed-resource string-comparison compatibility', function (): void {
+    $resource = fopen('php://memory', 'r');
+    $string = (string) $resource;
+    fclose($resource);
+
+    expect(gettype($resource))->toBe('resource (closed)')
+        ->and((new ArrayIntersectFilter([$resource]))->accept([$string]))->toBeTrue()
+        ->and((new ArrayDiffFilter([$resource]))->accept([$string]))->toBeFalse();
+});
