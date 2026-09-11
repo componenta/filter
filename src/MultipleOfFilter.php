@@ -66,6 +66,10 @@ final class MultipleOfFilter extends AbstractFilter
             return false;
         }
 
+        if ($quotient == 0.0 && NumericValueComparator::compare($value, 0) !== 0) {
+            return false;
+        }
+
         $nearestInteger = round($quotient);
         $scaledTolerance = PHP_FLOAT_EPSILON * max(1.0, abs($quotient)) * 8;
         $tolerance = min(1.0e-9, $scaledTolerance);
