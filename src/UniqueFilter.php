@@ -6,7 +6,9 @@ namespace Componenta\Filter;
 
 /**
  * Accepts only unique elements (first occurrence).
- * This filter is stateful.
+ *
+ * Direct accept() calls retain predicate state. Each iterator keeps its own
+ * uniqueness state so concurrent iterations over one filter do not interfere.
  */
 final class UniqueFilter extends AbstractFilter
 {
@@ -20,13 +22,22 @@ final class UniqueFilter extends AbstractFilter
         }
 
         $this->seen[] = $value;
+
         return true;
     }
 
     public function getIterator(): \Generator
     {
-        $this->seen = [];
-        return parent::getIterator();
+        $seen = [];
+
+        foreach ($this->iterable as $key => $value) {
+            if (in_array($value, $seen, true)) {
+                continue;
+            }
+
+            $seen[] = $value;
+            yield $key => $value;
+        }
     }
 
     public function __clone(): void
