@@ -135,3 +135,28 @@ it('supports explicitly configured finite recursive depth', function (): void {
 it('rejects negative maximum depth', function (): void {
     new RecursiveFilter(new StringFilter(), maxDepth: -1);
 })->throws(InvalidArgumentException::class);
+
+it('does not use deprecated SplObjectStorage traversal APIs', function (): void {
+    $source = new class implements IteratorAggregate {
+        public function getIterator(): Traversable
+        {
+            yield 'value' => 'accepted';
+        }
+    };
+
+    set_error_handler(static function (int $severity, string $message): bool {
+        if ($severity === E_DEPRECATED && str_contains($message, 'SplObjectStorage')) {
+            throw new ErrorException($message);
+        }
+
+        return false;
+    });
+
+    try {
+        $filter = new RecursiveFilter(new StringFilter(), iterable: $source);
+
+        expect($filter->toArray())->toBe(['accepted']);
+    } finally {
+        restore_error_handler();
+    }
+});

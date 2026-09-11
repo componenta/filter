@@ -108,7 +108,7 @@ final class RecursiveFilter extends AbstractFilter
             }
         } finally {
             foreach (array_reverse($trackedObjects) as $trackedObject) {
-                $active->detach($trackedObject);
+                $active->offsetUnset($trackedObject);
             }
         }
     }
@@ -122,11 +122,11 @@ final class RecursiveFilter extends AbstractFilter
         \SplObjectStorage $active,
         array &$trackedObjects,
     ): void {
-        if ($active->contains($iterable)) {
+        if ($active->offsetExists($iterable)) {
             throw new \RuntimeException('Recursive iterable cycle detected');
         }
 
-        $active->attach($iterable);
+        $active->offsetSet($iterable, null);
         $trackedObjects[] = $iterable;
     }
 }
