@@ -13,6 +13,7 @@ final class InstanceofAnyFilter extends AbstractFilter
         private readonly array $classNames,
         iterable $iterable = []
     ) {
+        StringList::assert($classNames, 'classNames');
         parent::__construct($iterable);
     }
 
