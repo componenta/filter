@@ -12,6 +12,17 @@ it('distinguishes a valid false boolean from validation failure', function (): v
         ->and($filter->accept('not-a-boolean'))->toBeFalse();
 });
 
+it('keeps zero default flags when boolean options are passed as an array', function (): void {
+    $filter = new FilterVarFilter(
+        FILTER_VALIDATE_BOOLEAN,
+        ['options' => []],
+    );
+
+    expect($filter->accept('true'))->toBeTrue()
+        ->and($filter->accept('false'))->toBeTrue()
+        ->and($filter->accept('not-a-boolean'))->toBeFalse();
+});
+
 it('validates every member and required shape in filter_var array mode', function (): void {
     $integers = new FilterVarFilter(
         FILTER_VALIDATE_INT,
@@ -36,6 +47,22 @@ it('validates every member and required shape in filter_var array mode', functio
         ->and($forcedInteger->accept('bad'))->toBeFalse();
 });
 
+it('honors iterable binding while validating values', function (): void {
+    $filter = new FilterVarFilter(
+        FILTER_VALIDATE_INT,
+        iterable: [
+            'first' => '1',
+            'invalid' => 'not-an-int',
+            'second' => '2',
+        ],
+    );
+
+    expect($filter->toArray(preserveKeys: true))->toBe([
+        'first' => '1',
+        'second' => '2',
+    ]);
+});
+
 it('rejects an unknown filter id at construction time', function (): void {
     new FilterVarFilter(PHP_INT_MAX);
 })->throws(InvalidArgumentException::class);
@@ -49,6 +76,7 @@ it('rejects missing and invalid regular expression options at construction time'
 })->with([
     'missing regexp option' => 0,
     'missing regexp key' => [['options' => []]],
+    'non-array options container' => [['options' => 'not-an-array']],
     'invalid regexp pattern' => [['options' => ['regexp' => '/[']]],
 ])->throws(InvalidArgumentException::class);
 
