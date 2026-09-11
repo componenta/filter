@@ -12,10 +12,10 @@ class ChainableFilter extends AbstractFilter implements FilterableInterface
     use Filterable;
 
     /**
-     * @param iterable<PredicateInterface> $filters
+     * @param PredicateInterface|iterable<PredicateInterface> $filters
      */
     public function __construct(
-        iterable $filters = [],
+        PredicateInterface|iterable $filters = [],
         iterable $iterable = [],
     ) {
         $this->initFilters($filters);
