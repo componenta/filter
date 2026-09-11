@@ -20,6 +20,11 @@ it('does not let floating-point tolerance swallow a real fractional remainder', 
     expect($filter->accept(1_000_000_000_000_000.25))->toBeFalse();
 });
 
+it('does not mistake float quotient underflow for an integer multiple', function (): void {
+    expect((new MultipleOfFilter(1e308))->accept(1e-308))->toBeFalse()
+        ->and((new MultipleOfFilter(1.0))->accept('1e-10000'))->toBeFalse();
+});
+
 it('checks integer and numeric-string multiples without integer or float overflow', function (): void {
     $filter = new MultipleOfFilter('7');
 
