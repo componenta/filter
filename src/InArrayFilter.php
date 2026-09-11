@@ -39,6 +39,6 @@ final class InArrayFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return in_array($value, $this->allowed, $this->strict);
+        return ValueComparator::contains($this->allowed, $value, $this->strict);
     }
 }
