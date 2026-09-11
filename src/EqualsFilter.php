@@ -39,8 +39,6 @@ final class EqualsFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return $this->strict
-            ? $value === $this->expected
-            : $value == $this->expected;
+        return ValueComparator::equals($value, $this->expected, $this->strict);
     }
 }
