@@ -42,3 +42,14 @@ it('rejects uninitialized and static properties instead of throwing', function (
     expect($filter->accept($uninitialized))->toBeFalse()
         ->and($filter->accept($static))->toBeFalse();
 });
+
+it('rejects a virtual write-only property hook instead of throwing', function (): void {
+    $writeOnly = new class {
+        public string $status {
+            set {
+            }
+        }
+    };
+
+    expect((new PropertyEqualsFilter('status', 'active'))->accept($writeOnly))->toBeFalse();
+});
