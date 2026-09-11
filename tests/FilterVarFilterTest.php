@@ -11,3 +11,7 @@ it('distinguishes a valid false boolean from validation failure', function (): v
         ->and($filter->accept('false'))->toBeTrue()
         ->and($filter->accept('not-a-boolean'))->toBeFalse();
 });
+
+it('rejects an unknown filter id at construction time', function (): void {
+    new FilterVarFilter(PHP_INT_MAX);
+})->throws(InvalidArgumentException::class);
