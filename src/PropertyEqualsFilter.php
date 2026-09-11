@@ -64,6 +64,10 @@ final class PropertyEqualsFilter extends AbstractFilter
             return false;
         }
 
+        if ($property->isVirtual() && !$property->hasHook(\PropertyHookType::Get)) {
+            return false;
+        }
+
         $propertyValue = $property->getValue($value);
 
         return $this->strict
