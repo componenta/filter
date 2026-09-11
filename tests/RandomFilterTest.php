@@ -68,3 +68,35 @@ it('supports an injected deterministic Randomizer', function (): void {
     expect($firstSequence)->toBe($secondSequence)
         ->and(array_unique($firstSequence))->toHaveCount(2);
 });
+
+it('does not share RNG state with an immutable iterable clone', function (): void {
+    $original = new RandomFilter(
+        0.5,
+        randomizer: new Randomizer(new Mt19937(2)),
+    );
+    $changed = $original->withIterable([1, 2, 3]);
+    $control = new RandomFilter(
+        0.5,
+        randomizer: new Randomizer(new Mt19937(2)),
+    );
+
+    $changed->accept('consume clone RNG');
+
+    expect($original->accept('original'))->toBe($control->accept('control'));
+});
+
+it('does not share RNG state with a probability clone', function (): void {
+    $original = new RandomFilter(
+        0.5,
+        randomizer: new Randomizer(new Mt19937(2)),
+    );
+    $changed = $original->withProbability(0.5);
+    $control = new RandomFilter(
+        0.5,
+        randomizer: new Randomizer(new Mt19937(2)),
+    );
+
+    $changed->accept('consume clone RNG');
+
+    expect($original->accept('original'))->toBe($control->accept('control'));
+});
