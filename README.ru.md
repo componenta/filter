@@ -1,6 +1,6 @@
 # Componenta Filter
 
-Компонуемые объекты-фильтры для iterable-данных и сценариев discovery/reflection.
+Компонуемые предикаты и iterable-фильтры коллекций для PHP 8.4+.
 
 ## Установка
 
@@ -13,29 +13,27 @@ composer require componenta/filter
 - PHP 8.4+
 - `componenta/arrayable`
 
-## Связанные пакеты
+## Контракты
 
-| Пакет | Зачем нужен здесь |
-|---|---|
-| `componenta/arrayable` | Фильтры могут раскрывать результат через `toArray()`. |
-| `componenta/class-finder` | Использует фильтры для отбора найденных классов, атрибутов и reflection-объектов. |
-| `componenta/iterator` | Может использовать фильтрацию поверх переигрываемых итераторов. |
+Во второй major-версии разделены проверка отдельного значения и операции над коллекцией.
 
-## Что предоставляет пакет
+- `PredicateInterface` содержит только `accept()` и используется там, где значение можно проверить независимо от коллекции.
+- `CollectionFilterInterface` описывает работу с iterable через `getIterator()`, `withIterable()` и `toArray()`.
+- `FilterInterface` расширяет оба интерфейса и представляет обычный predicate-backed фильтр коллекции.
+- `AbstractCollectionFilter` реализует общую иммутабельную привязку iterable и `toArray()` для collection-only операторов.
+- `AbstractFilter` расширяет `AbstractCollectionFilter` и добавляет фильтрацию на основе предиката.
 
-- `FilterInterface`: контракт iterable-фильтра с `accept()` и `toArray()`.
-- `AbstractFilter`: базовая реализация фильтрации iterable-источника.
-- `FilterableInterface` и `Filterable`: иммутабельная поддержка цепочки фильтров.
-- Фильтры для scalar, array, string, class name, reflection, file, range, callback и composition-сценариев.
+Благодаря этому операторы, зависящие от всей коллекции, больше не обязаны иметь искусственный `accept()`.
 
-## Базовое использование
+## Обычная фильтрация
 
 ```php
 use Componenta\Filter\StringFilter;
 
 $filter = new StringFilter(['one', 2, 'three']);
 
-$filter->toArray(); // ['one', 'three']
+$filter->accept('value'); // true
+$filter->toArray();       // ['one', 'three']
 ```
 
 Ключи по умолчанию не сохраняются:
@@ -44,39 +42,80 @@ $filter->toArray(); // ['one', 'three']
 $filter->toArray(preserveKeys: true);
 ```
 
-## Пользовательский критерий
+## Чистые предикаты
+
+Для композиции больше не требуется реализовывать iterable-контракт:
 
 ```php
-use Componenta\Filter\CallbackFilter;
+use Componenta\Filter\ChainableFilter;
+use Componenta\Filter\PredicateInterface;
 
-$filter = new CallbackFilter(
-    static fn(mixed $value, string|int|null $key): bool => is_int($value) && $value > 10,
-    [5, 15, 20],
+$positiveInteger = new class implements PredicateInterface {
+    public function accept(mixed $value, string|int|null $key = null): bool
+    {
+        return is_int($value) && $value > 0;
+    }
+};
+
+$filter = ChainableFilter::create($positiveInteger);
+$filter->accept(10); // true
+```
+
+`Filterable`, `ChainableFilter`, `OneOfFilter`, `NotFilter` и `RecursiveFilter` теперь зависят от `PredicateInterface`, а не от `FilterInterface`.
+
+## Collection-only операторы
+
+`PercentageFilter` реализует только `CollectionFilterInterface`, поскольку его результат зависит от размера и позиции элементов всей коллекции:
+
+```php
+use Componenta\Filter\PercentageFilter;
+
+$filter = new PercentageFilter(50, ['a', 'b', 'c', 'd']);
+$filter->toArray(); // ['a', 'b']
+```
+
+Метода `accept()` у него больше нет.
+
+`MergingFilter` также является collection-only оператором. Он объединяет результаты любых реализаций `CollectionFilterInterface`, включая другие collection-only операторы:
+
+```php
+use Componenta\Filter\IntFilter;
+use Componenta\Filter\MergingFilter;
+use Componenta\Filter\PercentageFilter;
+
+$filter = new MergingFilter(
+    new IntFilter([1, 'two']),
+    new PercentageFilter(50, ['a', 'b', 'c', 'd']),
 );
 
-$filter->toArray(); // [15, 20]
+$filter->toArray(); // [1, 'a', 'b']
 ```
 
-## Цепочки фильтров
+`withIterable()` заменяет источник у всех объединённых collection filters и при необходимости делает одноразовый iterable переигрываемым.
 
-Объекты с `Filterable` возвращают новые экземпляры при добавлении или удалении фильтров.
+## Композиция предикатов
+
+Объекты с `Filterable` возвращают новые экземпляры при добавлении или удалении предикатов:
 
 ```php
-$next = $filterable->withFilter($filter);
-$sameWithout = $next->withoutFilter($filter);
+$next = $filterable->withFilter($predicate);
+$sameWithout = $next->withoutFilter($predicate);
 ```
 
-`Filterable::accept()` использует AND-семантику: значение должны принять все зарегистрированные фильтры. `OneOfFilter::accept()` использует OR-семантику и возвращает `false`, если альтернативные фильтры отсутствуют.
-
-## Фильтры, зависящие от коллекции
-
-`PercentageFilter` зависит от размера всей коллекции. Его следует итерировать или вызывать `toArray()`; прямой вызов `accept()` выбрасывает `LogicException`, поскольку одного значения недостаточно для вычисления процента.
-
-`MergingFilter` последовательно объединяет iterable-результаты вложенных фильтров. Его `accept()` использует OR-семантику: значение принимается, если его принимает хотя бы один вложенный фильтр. `withIterable()` применяет новый источник ко всем вложенным фильтрам и при необходимости делает одноразовый iterable переигрываемым.
+`Filterable::accept()` использует AND-семантику. `OneOfFilter::accept()` использует OR-семантику и возвращает `false`, если предикаты не заданы.
 
 ## Проверка конфигурации
 
-Некорректная конфигурация, при которой фильтр не может безопасно работать, отклоняется заранее через `InvalidArgumentException`: это касается, в частности, диапазонов, регулярных выражений, конфигурации `filter_var()`, вероятностей, процентов и типизированных списков строк/имён классов.
+Некорректная конфигурация, при которой фильтр не может безопасно работать, отклоняется заранее через `InvalidArgumentException`: это касается диапазонов, регулярных выражений, конфигурации `filter_var()`, вероятностей, процентов и типизированных списков строк/имён классов.
+
+## Breaking changes относительно 1.x
+
+- `FilterInterface` теперь является пересечением `PredicateInterface` и `CollectionFilterInterface`.
+- `PercentageFilter` больше не наследуется от `AbstractFilter` и не имеет `accept()`.
+- `MergingFilter` больше не реализует `FilterInterface` и не имеет `accept()`.
+- `MergingFilter` принимает любые `CollectionFilterInterface`, а не только predicate-backed фильтры.
+- API композиции принимает `PredicateInterface`, поэтому пользовательскому предикату больше не нужны iterable-методы.
+- `AbstractFilter` теперь наследуется от `AbstractCollectionFilter`.
 
 ## Разработка
 
