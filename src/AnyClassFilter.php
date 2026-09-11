@@ -29,10 +29,7 @@ final class AnyClassFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if (!is_object($value)) {
-            return false;
-        }
-
-        return in_array($value::class, $this->allowedClasses, true);
+        return is_object($value)
+            && ConcreteClassName::contains($this->allowedClasses, $value::class);
     }
 }
