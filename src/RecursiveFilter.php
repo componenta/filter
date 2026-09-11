@@ -70,17 +70,18 @@ final class RecursiveFilter extends AbstractFilter
      */
     private function iterate(iterable $iterable, int $depth, \SplObjectStorage $active): \Generator
     {
-        $trackedObject = is_object($iterable) ? $iterable : null;
-
-        if ($trackedObject !== null) {
-            if ($active->contains($trackedObject)) {
-                throw new \RuntimeException('Recursive iterable cycle detected');
-            }
-
-            $active->attach($trackedObject);
-        }
+        $trackedObjects = [];
 
         try {
+            while ($iterable instanceof \IteratorAggregate) {
+                $this->trackIterableObject($iterable, $active, $trackedObjects);
+                $iterable = $iterable->getIterator();
+            }
+
+            if (is_object($iterable)) {
+                $this->trackIterableObject($iterable, $active, $trackedObjects);
+            }
+
             foreach ($iterable as $key => $value) {
                 if (!is_iterable($value)) {
                     if ($this->accept($value, $key)) {
@@ -106,9 +107,26 @@ final class RecursiveFilter extends AbstractFilter
                 }
             }
         } finally {
-            if ($trackedObject !== null) {
+            foreach (array_reverse($trackedObjects) as $trackedObject) {
                 $active->detach($trackedObject);
             }
         }
+    }
+
+    /**
+     * @param \SplObjectStorage<object, null> $active
+     * @param list<object> $trackedObjects
+     */
+    private function trackIterableObject(
+        object $iterable,
+        \SplObjectStorage $active,
+        array &$trackedObjects,
+    ): void {
+        if ($active->contains($iterable)) {
+            throw new \RuntimeException('Recursive iterable cycle detected');
+        }
+
+        $active->attach($iterable);
+        $trackedObjects[] = $iterable;
     }
 }

@@ -20,6 +20,27 @@ it('rejects recursive iterable object cycles deterministically', function (): vo
         ->toThrow(RuntimeException::class, 'Recursive iterable cycle detected');
 });
 
+it('rejects cycles inside IteratorAggregate chains before foreach recursion', function (): void {
+    $factory = static fn() => new class implements IteratorAggregate {
+        public ?IteratorAggregate $next = null;
+
+        public function getIterator(): Traversable
+        {
+            return $this->next ?? new EmptyIterator();
+        }
+    };
+
+    $first = $factory();
+    $second = $factory();
+    $first->next = $second;
+    $second->next = $first;
+
+    $filter = new RecursiveFilter(new StringFilter(), iterable: $first);
+
+    expect(fn() => iterator_to_array($filter->getIterator(), false))
+        ->toThrow(RuntimeException::class, 'Recursive iterable cycle detected');
+});
+
 it('allows non-cyclic nested iterable objects', function (): void {
     $leaf = new class implements IteratorAggregate {
         public function getIterator(): Traversable
