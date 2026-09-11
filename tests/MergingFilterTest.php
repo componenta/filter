@@ -29,7 +29,25 @@ it('returns a new merge with the iterable applied to every inner filter', functi
         ->and($changed->toArray())->toBe([2, 'two']);
 });
 
-it('replays a one-shot iterable for every merged filter', function (): void {
+it('does not consume a one-shot iterable until iteration starts', function (): void {
+    $reads = 0;
+    $source = (static function () use (&$reads): Generator {
+        $reads++;
+        yield 1;
+        $reads++;
+        yield 'two';
+    })();
+
+    $filter = (new MergingFilter(new IntFilter(), new StringFilter()))
+        ->withIterable($source);
+
+    expect($reads)->toBe(0);
+
+    expect($filter->toArray())->toBe([1, 'two'])
+        ->and($reads)->toBe(2);
+});
+
+it('replays a one-shot iterable for every merged filter and every traversal', function (): void {
     $source = (static function (): Generator {
         yield 'integer' => 2;
         yield 'string' => 'two';
@@ -39,6 +57,9 @@ it('replays a one-shot iterable for every merged filter', function (): void {
         ->withIterable($source);
 
     expect($filter->toArray(true))->toBe([
+        'integer' => 2,
+        'string' => 'two',
+    ])->and($filter->toArray(true))->toBe([
         'integer' => 2,
         'string' => 'two',
     ]);
