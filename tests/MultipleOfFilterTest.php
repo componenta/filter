@@ -9,6 +9,8 @@ it('accepts decimal multiples despite floating-point representation noise', func
 
     expect($filter->accept(0.3))->toBeTrue()
         ->and($filter->accept('0.3'))->toBeTrue()
+        ->and($filter->accept(0.30000000000000004))->toBeTrue()
+        ->and($filter->accept(-0.30000000000000004))->toBeTrue()
         ->and($filter->accept(0.35))->toBeFalse();
 });
 
