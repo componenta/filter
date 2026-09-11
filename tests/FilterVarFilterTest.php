@@ -58,6 +58,40 @@ it('does not reinterpret callback null results as validation failure', function 
         ->and($filter->accept('false'))->toBeFalse();
 });
 
+it('treats PHP 8.5 FILTER_THROW_ON_FAILURE as predicate rejection', function (): void {
+    if (!defined('FILTER_THROW_ON_FAILURE')) {
+        expect(PHP_VERSION_ID)->toBeLessThan(80500);
+        return;
+    }
+
+    $throw = constant('FILTER_THROW_ON_FAILURE');
+    $integer = new FilterVarFilter(FILTER_VALIDATE_INT, $throw);
+    $boolean = new FilterVarFilter(FILTER_VALIDATE_BOOLEAN, $throw);
+    $requiredArray = new FilterVarFilter(
+        FILTER_VALIDATE_INT,
+        ['flags' => FILTER_REQUIRE_ARRAY | $throw],
+    );
+
+    expect($integer->accept('42'))->toBeTrue()
+        ->and($integer->accept('bad'))->toBeFalse()
+        ->and($boolean->accept('false'))->toBeTrue()
+        ->and($boolean->accept('not-a-boolean'))->toBeFalse()
+        ->and($requiredArray->accept([1, '2']))->toBeTrue()
+        ->and($requiredArray->accept([1, 'bad']))->toBeFalse();
+});
+
+it('rejects incompatible PHP 8.5 filter failure flags', function (): void {
+    if (!defined('FILTER_THROW_ON_FAILURE')) {
+        expect(PHP_VERSION_ID)->toBeLessThan(80500);
+        return;
+    }
+
+    $flags = FILTER_NULL_ON_FAILURE | constant('FILTER_THROW_ON_FAILURE');
+
+    expect(fn() => new FilterVarFilter(FILTER_VALIDATE_INT, $flags))
+        ->toThrow(InvalidArgumentException::class);
+});
+
 it('validates every member and required shape in filter_var array mode', function (): void {
     $integers = new FilterVarFilter(
         FILTER_VALIDATE_INT,

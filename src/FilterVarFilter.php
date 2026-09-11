@@ -46,8 +46,10 @@ final class FilterVarFilter extends AbstractFilter
     {
         $options = $this->options;
         $boolean = $this->filter === FILTER_VALIDATE_BOOLEAN;
+        $throwOnFailure = self::hasThrowOnFailure(self::flags($options))
+            && self::isValidationFilter($this->filter);
 
-        if ($boolean) {
+        if ($boolean && !$throwOnFailure) {
             if (is_array($options)) {
                 $options['flags'] = ($options['flags'] ?? 0) | FILTER_NULL_ON_FAILURE;
             } else {
@@ -55,10 +57,19 @@ final class FilterVarFilter extends AbstractFilter
             }
         }
 
-        $result = filter_var($value, $this->filter, $options);
+        try {
+            $result = filter_var($value, $this->filter, $options);
+        } catch (\Filter\FilterFailedException) {
+            return false;
+        }
+
         $flags = self::flags($options);
         $arrayMode = ($flags & (FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY)) !== 0;
         $nullOnFailure = self::returnsNullOnFailure($this->filter, $flags);
+
+        if ($throwOnFailure) {
+            return $arrayMode ? is_array($result) : true;
+        }
 
         if ($arrayMode) {
             return is_array($result) && !self::containsFailure($result, $nullOnFailure);
@@ -83,6 +94,16 @@ final class FilterVarFilter extends AbstractFilter
             && !is_int($options['flags'])
         ) {
             throw new \InvalidArgumentException('filter_var flags must be an integer');
+        }
+
+        $flags = self::flags($options);
+
+        if (self::hasThrowOnFailure($flags)
+            && ($flags & FILTER_NULL_ON_FAILURE) !== 0
+        ) {
+            throw new \InvalidArgumentException(
+                'FILTER_THROW_ON_FAILURE cannot be combined with FILTER_NULL_ON_FAILURE',
+            );
         }
 
         if ($filter === FILTER_VALIDATE_REGEXP) {
@@ -110,12 +131,26 @@ final class FilterVarFilter extends AbstractFilter
         return is_int($options) ? $options : ($options['flags'] ?? 0);
     }
 
-    private static function returnsNullOnFailure(int $filter, int $flags): bool
+    private static function hasThrowOnFailure(int $flags): bool
     {
-        if (($flags & FILTER_NULL_ON_FAILURE) === 0) {
+        if (!defined('FILTER_THROW_ON_FAILURE')) {
             return false;
         }
 
+        /** @var int $throwOnFailure */
+        $throwOnFailure = constant('FILTER_THROW_ON_FAILURE');
+
+        return ($flags & $throwOnFailure) !== 0;
+    }
+
+    private static function returnsNullOnFailure(int $filter, int $flags): bool
+    {
+        return ($flags & FILTER_NULL_ON_FAILURE) !== 0
+            && self::isValidationFilter($filter);
+    }
+
+    private static function isValidationFilter(int $filter): bool
+    {
         return in_array($filter, [
             FILTER_VALIDATE_INT,
             FILTER_VALIDATE_BOOLEAN,
