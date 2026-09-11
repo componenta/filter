@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Componenta\Filter\RandomFilter;
+use Random\Engine;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
@@ -99,4 +100,25 @@ it('does not share RNG state with a probability clone', function (): void {
     $changed->accept('consume clone RNG');
 
     expect($original->accept('original'))->toBe($control->accept('control'));
+});
+
+it('fails fast when an injected engine cannot be copied immutably', function (): void {
+    $engine = new class implements Engine {
+        private function __clone() {}
+
+        public function generate(): string
+        {
+            return random_bytes(8);
+        }
+    };
+
+    $filter = new RandomFilter(
+        0.5,
+        randomizer: new Randomizer($engine),
+    );
+
+    expect(fn() => $filter->withIterable([1, 2, 3]))
+        ->toThrow(LogicException::class, 'cannot be copied immutably')
+        ->and(fn() => $filter->withProbability(0.25))
+        ->toThrow(LogicException::class, 'cannot be copied immutably');
 });
