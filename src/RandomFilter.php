@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Componenta\Filter;
 
+use Random\Engine;
 use Random\Engine\Secure;
 use Random\Randomizer;
 
@@ -12,7 +13,7 @@ use Random\Randomizer;
  *
  * Uses an isolated Randomizer by default and never mutates PHP's global
  * mt_rand() state. A Randomizer may be injected for reproducible behavior.
- * Immutable clones copy cloneable engine state instead of sharing it.
+ * Immutable clones preserve independent engine state instead of sharing it.
  */
 final class RandomFilter extends AbstractFilter
 {
@@ -83,13 +84,37 @@ final class RandomFilter extends AbstractFilter
 
         $reflection = new \ReflectionObject($engine);
 
-        if ($reflection->isCloneable()) {
+        if (!$reflection->isCloneable()) {
+            throw self::uncopyableEngine($engine);
+        }
+
+        if ($reflection->isInternal()) {
             return new Randomizer(clone $engine);
         }
 
-        throw new \LogicException(sprintf(
-            'Random engine %s cannot be copied immutably',
-            $engine::class,
-        ));
+        try {
+            $copy = unserialize(
+                serialize($engine),
+                ['allowed_classes' => true],
+            );
+        } catch (\Throwable $exception) {
+            throw self::uncopyableEngine($engine, $exception);
+        }
+
+        if (!$copy instanceof Engine) {
+            throw self::uncopyableEngine($engine);
+        }
+
+        return new Randomizer($copy);
+    }
+
+    private static function uncopyableEngine(
+        Engine $engine,
+        ?\Throwable $previous = null,
+    ): \LogicException {
+        return new \LogicException(
+            sprintf('Random engine %s cannot be copied immutably', $engine::class),
+            previous: $previous,
+        );
     }
 }

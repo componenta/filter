@@ -7,6 +7,24 @@ use Random\Engine;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
+final class RandomFilterMutableState
+{
+    public int $counter = 0;
+}
+
+final class RandomFilterNestedStateEngine implements Engine
+{
+    public function __construct(
+        public RandomFilterMutableState $state = new RandomFilterMutableState(),
+    ) {
+    }
+
+    public function generate(): string
+    {
+        return pack('V', $this->state->counter++);
+    }
+}
+
 dataset('invalid probabilities', [
     'below zero' => -0.1,
     'above one' => 1.1,
@@ -109,6 +127,23 @@ it('does not share RNG state with an immutable iterable clone', function (): voi
     $changed->accept('consume clone RNG');
 
     expect($original->accept('original'))->toBe($control->accept('control'));
+});
+
+it('deep-copies nested custom engine state for immutable clones', function (): void {
+    $original = new RandomFilter(
+        0.5,
+        randomizer: new Randomizer(new RandomFilterNestedStateEngine()),
+    );
+    $changed = $original->withIterable([1, 2, 3]);
+    $control = new RandomFilter(
+        0.5,
+        randomizer: new Randomizer(new RandomFilterNestedStateEngine()),
+    );
+
+    $changed->getRandomizer()->getInt(0, PHP_INT_MAX);
+
+    expect($original->getRandomizer()->getInt(0, PHP_INT_MAX))
+        ->toBe($control->getRandomizer()->getInt(0, PHP_INT_MAX));
 });
 
 it('does not share RNG state with a probability clone', function (): void {
