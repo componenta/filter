@@ -15,6 +15,19 @@ it('determines parity of integer strings beyond the platform integer range', fun
         ->and($odd->accept('9223372036854775809'))->toBeTrue();
 });
 
+it('determines parity of exact decimal and scientific integer strings without float rounding', function (): void {
+    $even = new EvenNumberFilter();
+    $odd = new OddNumberFilter();
+
+    expect($odd->accept('9223372036854775809.0'))->toBeTrue()
+        ->and($even->accept('9223372036854775809.0'))->toBeFalse()
+        ->and($even->accept('9223372036854775809e1'))->toBeTrue()
+        ->and($odd->accept('92233720368547758090e-1'))->toBeTrue()
+        ->and($odd->accept('1.5e1'))->toBeTrue()
+        ->and($even->accept('1.5e0'))->toBeFalse()
+        ->and($odd->accept('1.5e0'))->toBeFalse();
+});
+
 it('continues to accept integral numeric forms and reject fractions', function (): void {
     $even = new EvenNumberFilter();
     $odd = new OddNumberFilter();
