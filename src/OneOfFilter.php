@@ -14,10 +14,10 @@ class OneOfFilter extends AbstractFilter implements FilterableInterface
     }
 
     /**
-     * @param iterable<PredicateInterface> $filters
+     * @param PredicateInterface|iterable<PredicateInterface> $filters
      */
     public function __construct(
-        iterable $filters = [],
+        PredicateInterface|iterable $filters = [],
         iterable $iterable = [],
     ) {
         $this->initFilters($filters);
