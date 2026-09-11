@@ -39,6 +39,18 @@ final class FilterVarFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return filter_var($value, $this->filter, $this->options) !== false;
+        if ($this->filter !== FILTER_VALIDATE_BOOLEAN) {
+            return filter_var($value, $this->filter, $this->options) !== false;
+        }
+
+        $options = $this->options;
+
+        if (is_array($options)) {
+            $options['flags'] = ($options['flags'] ?? 0) | FILTER_NULL_ON_FAILURE;
+        } else {
+            $options |= FILTER_NULL_ON_FAILURE;
+        }
+
+        return filter_var($value, $this->filter, $options) !== null;
     }
 }
