@@ -12,6 +12,12 @@ it('accepts decimal multiples despite floating-point representation noise', func
         ->and($filter->accept(0.35))->toBeFalse();
 });
 
+it('does not let floating-point tolerance swallow a real fractional remainder', function (): void {
+    $filter = new MultipleOfFilter(1.0);
+
+    expect($filter->accept(1_000_000_000_000_000.25))->toBeFalse();
+});
+
 dataset('invalid divisors', [
     'zero' => 0.0,
     'negative zero' => -0.0,
