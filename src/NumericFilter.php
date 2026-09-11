@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Componenta\Filter;
 
 /**
- * Accepts elements that are numeric (numbers or numeric strings).
+ * Accepts finite numeric values and numeric strings.
  */
 final class NumericFilter extends AbstractFilter
 {
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return is_numeric($value);
+        return NumericValueComparator::isValid($value);
     }
 }
