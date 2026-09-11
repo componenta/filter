@@ -8,6 +8,7 @@ use Componenta\Filter\FilterInterface;
 use Componenta\Filter\IntFilter;
 use Componenta\Filter\MergingFilter;
 use Componenta\Filter\NotFilter;
+use Componenta\Filter\OneOfFilter;
 use Componenta\Filter\PercentageFilter;
 use Componenta\Filter\PredicateInterface;
 use Componenta\Filter\RecursiveFilter;
@@ -45,6 +46,15 @@ it('allows predicate composition without requiring iterable filter behavior', fu
         ->and(ChainableFilter::create($predicate)->accept(10))->toBeFalse()
         ->and((new NotFilter($predicate))->accept(10))->toBeTrue()
         ->and((new RecursiveFilter($predicate))->accept(11))->toBeTrue();
+});
+
+it('accepts a single predicate directly in composite constructors', function (): void {
+    $predicate = new IntFilter();
+
+    expect((new ChainableFilter($predicate))->accept(1))->toBeTrue()
+        ->and((new ChainableFilter($predicate))->accept('1'))->toBeFalse()
+        ->and((new OneOfFilter($predicate))->accept(1))->toBeTrue()
+        ->and((new OneOfFilter($predicate))->accept('1'))->toBeFalse();
 });
 
 it('merges arbitrary collection filters without inventing predicate semantics', function (): void {
