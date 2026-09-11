@@ -21,6 +21,17 @@ it('preserves exact timestamps across an ambiguous DST hour', function (): void 
     }
 });
 
+it('compares fractional seconds exactly', function (): void {
+    $filter = new DateRangeFilter(
+        '2026-06-01T12:00:00.200000+00:00',
+        '2026-06-01T12:00:00.300000+00:00',
+    );
+
+    expect($filter->accept('2026-06-01T12:00:00.100000+00:00'))->toBeFalse()
+        ->and($filter->accept('2026-06-01T12:00:00.250000+00:00'))->toBeTrue()
+        ->and($filter->accept('2026-06-01T12:00:00.400000+00:00'))->toBeFalse();
+});
+
 it('captures its timezone instead of depending on later global timezone changes', function (): void {
     $previousTimezone = date_default_timezone_get();
     date_default_timezone_set('Europe/Copenhagen');
