@@ -8,12 +8,13 @@ namespace Componenta\Filter;
  * Accepts absolute date/time values that fall within the configured range.
  *
  * Local date strings are interpreted in the timezone captured by the filter.
- * Relative date expressions are intentionally unsupported.
+ * Relative date expressions are intentionally unsupported. Comparisons retain
+ * microsecond precision.
  */
 final class DateRangeFilter extends AbstractFilter
 {
-    private int $minTimestamp;
-    private int $maxTimestamp;
+    private readonly \DateTimeImmutable $minDate;
+    private readonly \DateTimeImmutable $maxDate;
     private readonly \DateTimeZone $timezone;
 
     public function __construct(
@@ -35,12 +36,14 @@ final class DateRangeFilter extends AbstractFilter
             throw new \InvalidArgumentException('Invalid absolute maximum date');
         }
 
-        if ($min > $max) {
+        $comparison = self::compareInstants($min, $max);
+
+        if ($comparison > 0) {
             throw new \InvalidArgumentException('Minimum date must not be after maximum date');
         }
 
-        $this->minTimestamp = $min;
-        $this->maxTimestamp = $max;
+        $this->minDate = $min;
+        $this->maxDate = $max;
         parent::__construct($iterable);
     }
 
@@ -60,32 +63,27 @@ final class DateRangeFilter extends AbstractFilter
 
     public function withMinDate(\DateTimeInterface|string $minDate): static
     {
-        return new self($minDate, new \DateTimeImmutable(sprintf('@%d', $this->maxTimestamp)), $this->iterable, $this->timezone);
+        return new self($minDate, $this->maxDate, $this->iterable, $this->timezone);
     }
 
     public function withMaxDate(\DateTimeInterface|string $maxDate): static
     {
-        return new self(new \DateTimeImmutable(sprintf('@%d', $this->minTimestamp)), $maxDate, $this->iterable, $this->timezone);
+        return new self($this->minDate, $maxDate, $this->iterable, $this->timezone);
     }
 
     public function withTimezone(\DateTimeZone $timezone): static
     {
-        return self::fromTimestamps(
-            $this->minTimestamp,
-            $this->maxTimestamp,
-            $this->iterable,
-            $timezone,
-        );
+        return new self($this->minDate, $this->maxDate, $this->iterable, $timezone);
     }
 
     public function getMinTimestamp(): int
     {
-        return $this->minTimestamp;
+        return $this->minDate->getTimestamp();
     }
 
     public function getMaxTimestamp(): int
     {
-        return $this->maxTimestamp;
+        return $this->maxDate->getTimestamp();
     }
 
     public function getTimezone(): \DateTimeZone
@@ -99,19 +97,19 @@ final class DateRangeFilter extends AbstractFilter
             return false;
         }
 
-        $timestamp = self::parseAbsoluteDate($value, $this->timezone);
+        $date = self::parseAbsoluteDate($value, $this->timezone);
 
-        return $timestamp !== null
-            && $timestamp >= $this->minTimestamp
-            && $timestamp <= $this->maxTimestamp;
+        return $date !== null
+            && self::compareInstants($date, $this->minDate) >= 0
+            && self::compareInstants($date, $this->maxDate) <= 0;
     }
 
     private static function parseAbsoluteDate(
         \DateTimeInterface|string $value,
         \DateTimeZone $timezone,
-    ): ?int {
+    ): ?\DateTimeImmutable {
         if ($value instanceof \DateTimeInterface) {
-            return $value->getTimestamp();
+            return \DateTimeImmutable::createFromInterface($value);
         }
 
         $value = trim($value);
@@ -135,6 +133,17 @@ final class DateRangeFilter extends AbstractFilter
             return null;
         }
 
-        return $date->getTimestamp();
+        return $date;
+    }
+
+    /** @return -1|0|1 */
+    private static function compareInstants(
+        \DateTimeInterface $left,
+        \DateTimeInterface $right,
+    ): int {
+        return NumericValueComparator::compare(
+            $left->format('U.u'),
+            $right->format('U.u'),
+        ) ?? 0;
     }
 }
