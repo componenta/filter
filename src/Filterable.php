@@ -6,27 +6,25 @@ namespace Componenta\Filter;
 
 trait Filterable
 {
-    /** @var FilterInterface[] */
+    /** @var PredicateInterface[] */
     protected array $filters = [];
 
     /**
-     * @param iterable<FilterInterface>|FilterInterface $filters
-     *
-     * @throws \InvalidArgumentException If any element does not implement FilterInterface.
+     * @param iterable<PredicateInterface>|PredicateInterface $filters
      */
-    protected function initFilters(iterable|FilterInterface $filters): void
+    protected function initFilters(iterable|PredicateInterface $filters): void
     {
-        if ($filters instanceof FilterInterface) {
+        if ($filters instanceof PredicateInterface) {
             $this->filters[] = $filters;
 
             return;
         }
 
         foreach ($filters as $i => $filter) {
-            if (!$filter instanceof FilterInterface) {
+            if (!$filter instanceof PredicateInterface) {
                 throw new \InvalidArgumentException(
                     sprintf(
-                        '$filters[%s] passed to %s must implement FilterInterface',
+                        '$filters[%s] passed to %s must implement PredicateInterface',
                         $i,
                         static::class,
                     ),
@@ -37,7 +35,7 @@ trait Filterable
         }
     }
 
-    public function withFilter(FilterInterface $filter, bool $prepend = false): static
+    public function withFilter(PredicateInterface $filter, bool $prepend = false): static
     {
         $copy = clone $this;
 
@@ -50,7 +48,7 @@ trait Filterable
         return $copy;
     }
 
-    public function hasFilter(FilterInterface $filter): bool
+    public function hasFilter(PredicateInterface $filter): bool
     {
         return in_array($filter, $this->filters, true);
     }
@@ -66,17 +64,17 @@ trait Filterable
         return true;
     }
 
-    public function withoutFilter(FilterInterface $filter): static
+    public function withoutFilter(PredicateInterface $filter): static
     {
         $copy = clone $this;
         $copy->filters = array_values(
-            array_filter($this->filters, static fn($f) => $f !== $filter),
+            array_filter($this->filters, static fn(PredicateInterface $candidate): bool => $candidate !== $filter),
         );
 
         return $copy;
     }
 
-    /** @return FilterInterface[] */
+    /** @return PredicateInterface[] */
     public function getFilters(): array
     {
         return $this->filters;
