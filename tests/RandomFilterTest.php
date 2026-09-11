@@ -29,6 +29,31 @@ it('has deterministic behavior at probability boundaries', function (): void {
     }
 });
 
+it('does not consume RNG state at deterministic probability boundaries', function (float $probability, bool $expected): void {
+    $seed = 123456;
+    $randomizer = new Randomizer(new Mt19937($seed));
+    $control = new Randomizer(new Mt19937($seed));
+    $filter = new RandomFilter($probability, randomizer: $randomizer);
+
+    expect($filter->accept('value'))->toBe($expected)
+        ->and($filter->getRandomizer()->nextFloat())->toBe($control->nextFloat());
+})->with([
+    'never' => [0.0, false],
+    'always' => [1.0, true],
+]);
+
+it('uses a strict probability boundary', function (): void {
+    $seed = 42;
+    $control = new Randomizer(new Mt19937($seed));
+    $probability = $control->nextFloat();
+    $filter = new RandomFilter(
+        $probability,
+        randomizer: new Randomizer(new Mt19937($seed)),
+    );
+
+    expect($filter->accept('exact boundary'))->toBeFalse();
+});
+
 it('honors iterable binding at deterministic probability boundaries', function (): void {
     expect((new RandomFilter(0.0, [1, 2, 3]))->toArray())->toBe([])
         ->and((new RandomFilter(1.0, [1, 2, 3]))->toArray())->toBe([1, 2, 3]);
@@ -100,6 +125,17 @@ it('does not share RNG state with a probability clone', function (): void {
     $changed->accept('consume clone RNG');
 
     expect($original->accept('original'))->toBe($control->accept('control'));
+});
+
+it('copies the default secure engine for immutable clones', function (): void {
+    $original = new RandomFilter(0.5);
+    $iterableClone = $original->withIterable([1, 2, 3]);
+    $probabilityClone = $original->withProbability(0.25);
+
+    expect($iterableClone)->toBeInstanceOf(RandomFilter::class)
+        ->and($probabilityClone)->toBeInstanceOf(RandomFilter::class)
+        ->and($iterableClone->getRandomizer())->not->toBe($original->getRandomizer())
+        ->and($probabilityClone->getRandomizer())->not->toBe($original->getRandomizer());
 });
 
 it('fails fast when an injected engine cannot be copied immutably', function (): void {
