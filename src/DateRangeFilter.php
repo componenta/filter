@@ -225,9 +225,12 @@ final class DateRangeFilter extends AbstractFilter
         \DateTimeInterface $left,
         \DateTimeInterface $right,
     ): int {
-        return NumericValueComparator::compare(
-            $left->format('U.u'),
-            $right->format('U.u'),
-        ) ?? 0;
+        $timestampComparison = $left->getTimestamp() <=> $right->getTimestamp();
+
+        if ($timestampComparison !== 0) {
+            return $timestampComparison;
+        }
+
+        return (int) $left->format('u') <=> (int) $right->format('u');
     }
 }

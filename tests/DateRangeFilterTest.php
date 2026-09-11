@@ -32,6 +32,19 @@ it('compares fractional seconds exactly', function (): void {
         ->and($filter->accept('2026-06-01T12:00:00.400000+00:00'))->toBeFalse();
 });
 
+it('orders fractional seconds correctly before the Unix epoch', function (): void {
+    $filter = new DateRangeFilter(
+        '1969-12-31T23:59:59.200000+00:00',
+        '1969-12-31T23:59:59.800000+00:00',
+    );
+
+    expect($filter->accept('1969-12-31T23:59:59.100000+00:00'))->toBeFalse()
+        ->and($filter->accept('1969-12-31T23:59:59.200000+00:00'))->toBeTrue()
+        ->and($filter->accept('1969-12-31T23:59:59.500000+00:00'))->toBeTrue()
+        ->and($filter->accept('1969-12-31T23:59:59.800000+00:00'))->toBeTrue()
+        ->and($filter->accept('1969-12-31T23:59:59.900000+00:00'))->toBeFalse();
+});
+
 it('captures its timezone instead of depending on later global timezone changes', function (): void {
     $previousTimezone = date_default_timezone_get();
     date_default_timezone_set('Europe/Copenhagen');
