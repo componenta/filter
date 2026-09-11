@@ -36,9 +36,14 @@ it('does not collapse repeated generator keys before calculating the percentage'
     expect(iterator_to_array($filter->getIterator(), false))->toBe(['a', 'b']);
 });
 
-it('fails fast when used as a standalone predicate', function (): void {
-    (new PercentageFilter(50))->accept('value');
-})->throws(LogicException::class);
+it('rebinds the iterable immutably as a collection operator', function (): void {
+    $filter = new PercentageFilter(50, [1, 2, 3, 4]);
+    $changed = $filter->withIterable(['a', 'b', 'c', 'd']);
+
+    expect($changed)->not->toBe($filter)
+        ->and($filter->toArray())->toBe([1, 2])
+        ->and($changed->toArray())->toBe(['a', 'b']);
+});
 
 dataset('invalid percentages', [
     'below zero' => -0.1,
