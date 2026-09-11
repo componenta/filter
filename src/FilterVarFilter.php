@@ -14,6 +14,10 @@ final class FilterVarFilter extends AbstractFilter
         private readonly array|int $options = 0,
         iterable $iterable = []
     ) {
+        if (!self::isKnownFilter($filter)) {
+            throw new \InvalidArgumentException(sprintf('Unknown filter id: %d', $filter));
+        }
+
         parent::__construct($iterable);
     }
 
@@ -52,5 +56,14 @@ final class FilterVarFilter extends AbstractFilter
         }
 
         return filter_var($value, $this->filter, $options) !== null;
+    }
+
+    private static function isKnownFilter(int $filter): bool
+    {
+        static $filterIds = null;
+
+        $filterIds ??= array_map(filter_id(...), filter_list());
+
+        return in_array($filter, $filterIds, true);
     }
 }
