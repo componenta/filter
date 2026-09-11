@@ -50,15 +50,21 @@ final class PropertyEqualsFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if (!is_object($value)) {
+        if (!is_object($value) || !property_exists($value, $this->property)) {
             return false;
         }
 
-        if (!property_exists($value, $this->property)) {
+        try {
+            $property = new \ReflectionProperty($value, $this->property);
+        } catch (\ReflectionException) {
             return false;
         }
 
-        $propertyValue = $value->{$this->property};
+        if (!$property->isPublic() || $property->isStatic() || !$property->isInitialized($value)) {
+            return false;
+        }
+
+        $propertyValue = $property->getValue($value);
 
         return $this->strict
             ? $propertyValue === $this->expected
