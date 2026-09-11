@@ -9,8 +9,9 @@ namespace Componenta\Filter;
  *
  * Local date strings are interpreted in the timezone captured by the filter.
  * Relative date expressions are intentionally unsupported. Comparisons retain
- * microsecond precision. Local wall times that do not exist because of a
- * timezone transition are rejected instead of being normalized silently.
+ * microsecond precision. Nonexistent and ambiguous local wall times caused by
+ * timezone transitions are rejected unless an explicit offset disambiguates
+ * the instant.
  */
 final class DateRangeFilter extends AbstractFilter
 {
@@ -138,10 +139,12 @@ final class DateRangeFilter extends AbstractFilter
             return null;
         }
 
-        if (($matches['offset'] ?? null) === null
-            && !self::matchesLocalWallTime($date, $matches)
-        ) {
-            return null;
+        if (($matches['offset'] ?? null) === null) {
+            if (!self::matchesLocalWallTime($date, $matches)
+                || self::isAmbiguousLocalWallTime($date, $matches, $timezone)
+            ) {
+                return null;
+            }
         }
 
         return $date;
@@ -176,6 +179,61 @@ final class DateRangeFilter extends AbstractFilter
             $time,
             str_pad(substr($fraction, 1), 6, '0'),
         );
+    }
+
+    /**
+     * @param array<string, string|null> $matches
+     */
+    private static function isAmbiguousLocalWallTime(
+        \DateTimeImmutable $date,
+        array $matches,
+        \DateTimeZone $timezone,
+    ): bool {
+        $time = $matches['time'] ?? null;
+
+        if ($time === null) {
+            return false;
+        }
+
+        $transitions = $timezone->getTransitions(
+            $date->getTimestamp() - 172800,
+            $date->getTimestamp() + 172800,
+        );
+
+        if ($transitions === false || count($transitions) < 2) {
+            return false;
+        }
+
+        $wallTime = \DateTimeImmutable::createFromFormat(
+            '!Y-m-d H:i:s',
+            sprintf('%s %s', $matches['date'], $time),
+            new \DateTimeZone('UTC'),
+        );
+
+        if ($wallTime === false) {
+            return false;
+        }
+
+        $wallTimestamp = $wallTime->getTimestamp();
+        $previousOffset = $transitions[0]['offset'];
+
+        for ($i = 1, $count = count($transitions); $i < $count; $i++) {
+            $transition = $transitions[$i];
+            $nextOffset = $transition['offset'];
+
+            if ($nextOffset < $previousOffset) {
+                $repeatedStart = $transition['ts'] + $nextOffset;
+                $repeatedEnd = $transition['ts'] + $previousOffset;
+
+                if ($wallTimestamp >= $repeatedStart && $wallTimestamp < $repeatedEnd) {
+                    return true;
+                }
+            }
+
+            $previousOffset = $nextOffset;
+        }
+
+        return false;
     }
 
     /** @return -1|0|1 */
