@@ -28,6 +28,8 @@ final class RegexFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return preg_match($this->pattern, (string) $value) === 1;
+        $stringValue = StringValue::from($value);
+
+        return $stringValue !== null && preg_match($this->pattern, $stringValue) === 1;
     }
 }
