@@ -13,6 +13,10 @@ final class MinLengthFilter extends AbstractFilter
         private readonly int $minLength,
         iterable $iterable = []
     ) {
+        if ($minLength < 0) {
+            throw new \InvalidArgumentException('Minimum length must be non-negative');
+        }
+
         parent::__construct($iterable);
     }
 
