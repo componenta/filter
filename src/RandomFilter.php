@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Componenta\Filter;
 
+use Random\Engine\Secure;
 use Random\Randomizer;
 
 /**
@@ -11,6 +12,7 @@ use Random\Randomizer;
  *
  * Uses an isolated Randomizer by default and never mutates PHP's global
  * mt_rand() state. A Randomizer may be injected for reproducible behavior.
+ * Immutable clones copy cloneable engine state instead of sharing it.
  */
 final class RandomFilter extends AbstractFilter
 {
@@ -29,9 +31,18 @@ final class RandomFilter extends AbstractFilter
         parent::__construct($iterable);
     }
 
+    public function __clone(): void
+    {
+        $this->randomizer = self::copyRandomizer($this->randomizer);
+    }
+
     public function withProbability(float $probability): static
     {
-        return new self($probability, $this->iterable, $this->randomizer);
+        return new self(
+            $probability,
+            $this->iterable,
+            self::copyRandomizer($this->randomizer),
+        );
     }
 
     public function withRandomizer(Randomizer $randomizer): static
@@ -60,5 +71,25 @@ final class RandomFilter extends AbstractFilter
         }
 
         return $this->randomizer->nextFloat() < $this->probability;
+    }
+
+    private static function copyRandomizer(Randomizer $randomizer): Randomizer
+    {
+        $engine = $randomizer->engine;
+
+        if ($engine instanceof Secure) {
+            return new Randomizer(new Secure());
+        }
+
+        $reflection = new \ReflectionObject($engine);
+
+        if ($reflection->isCloneable()) {
+            return new Randomizer(clone $engine);
+        }
+
+        // A custom uncloneable engine cannot be duplicated generically. Keep
+        // the explicit caller-provided engine rather than silently changing
+        // the source of randomness.
+        return new Randomizer($engine);
     }
 }
