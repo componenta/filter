@@ -39,7 +39,13 @@ final class FileExtensionFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        $extension = pathinfo((string) $value, PATHINFO_EXTENSION);
+        $path = StringValue::from($value);
+
+        if ($path === null) {
+            return false;
+        }
+
+        $extension = pathinfo($path, PATHINFO_EXTENSION);
 
         if ($extension === '') {
             return false;
