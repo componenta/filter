@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Componenta\Filter\RandomFilter;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 
 dataset('invalid probabilities', [
     'below zero' => -0.1,
@@ -29,4 +31,40 @@ it('has deterministic behavior at probability boundaries', function (): void {
 it('honors iterable binding at deterministic probability boundaries', function (): void {
     expect((new RandomFilter(0.0, [1, 2, 3]))->toArray())->toBe([])
         ->and((new RandomFilter(1.0, [1, 2, 3]))->toArray())->toBe([1, 2, 3]);
+});
+
+it('does not mutate the process-global mt_rand state', function (): void {
+    mt_srand(123456);
+    $expectedFirst = mt_rand();
+    $expectedSecond = mt_rand();
+
+    mt_srand(123456);
+    $actualFirst = mt_rand();
+    (new RandomFilter(0.5))->accept('value');
+    $actualSecond = mt_rand();
+
+    expect($actualFirst)->toBe($expectedFirst)
+        ->and($actualSecond)->toBe($expectedSecond);
+});
+
+it('supports an injected deterministic Randomizer', function (): void {
+    $first = new RandomFilter(
+        0.5,
+        randomizer: new Randomizer(new Mt19937(42)),
+    );
+    $second = new RandomFilter(
+        0.5,
+        randomizer: new Randomizer(new Mt19937(42)),
+    );
+
+    $firstSequence = [];
+    $secondSequence = [];
+
+    foreach (range(1, 100) as $value) {
+        $firstSequence[] = $first->accept($value);
+        $secondSequence[] = $second->accept($value);
+    }
+
+    expect($firstSequence)->toBe($secondSequence)
+        ->and(array_unique($firstSequence))->toHaveCount(2);
 });
