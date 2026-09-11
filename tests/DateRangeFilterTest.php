@@ -81,6 +81,26 @@ it('rejects local times normalized through a DST gap', function (): void {
     expect($filter->accept('2026-03-29 02:30:00'))->toBeFalse();
 });
 
+it('rejects ambiguous local times in a DST overlap unless an offset is explicit', function (): void {
+    $timezone = new DateTimeZone('Europe/Copenhagen');
+
+    expect(fn() => new DateRangeFilter(
+        '2026-10-25 02:30:00',
+        '2026-10-25 04:00:00',
+        timezone: $timezone,
+    ))->toThrow(InvalidArgumentException::class);
+
+    $filter = new DateRangeFilter(
+        '2026-10-25T02:30:00+02:00',
+        '2026-10-25T02:30:00+01:00',
+        timezone: $timezone,
+    );
+
+    expect($filter->accept('2026-10-25 02:30:00'))->toBeFalse()
+        ->and($filter->accept('2026-10-25T02:30:00+02:00'))->toBeTrue()
+        ->and($filter->accept('2026-10-25T02:30:00+01:00'))->toBeTrue();
+});
+
 it('accepts DateTimeInterface values without reparsing through strings', function (): void {
     $filter = new DateRangeFilter(
         new DateTimeImmutable('2026-06-01T10:00:00+00:00'),
