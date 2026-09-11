@@ -17,7 +17,7 @@ final class UniqueFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if (in_array($value, $this->seen, true)) {
+        if (ValueComparator::contains($this->seen, $value)) {
             return false;
         }
 
@@ -43,7 +43,7 @@ final class UniqueFilter extends AbstractFilter
         $seen = [];
 
         foreach ($iterable as $key => $value) {
-            if (in_array($value, $seen, true)) {
+            if (ValueComparator::contains($seen, $value)) {
                 continue;
             }
 
