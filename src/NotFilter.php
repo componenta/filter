@@ -5,24 +5,23 @@ declare(strict_types=1);
 namespace Componenta\Filter;
 
 /**
- * Inverts the result of another filter.
- * Accepts elements that the inner filter rejects.
+ * Inverts another predicate.
  */
 final class NotFilter extends AbstractFilter
 {
     public function __construct(
-        private readonly FilterInterface $filter,
+        private readonly PredicateInterface $filter,
         iterable $iterable = []
     ) {
         parent::__construct($iterable);
     }
 
-    public function withFilter(FilterInterface $filter): static
+    public function withFilter(PredicateInterface $filter): static
     {
         return new self($filter, $this->iterable);
     }
 
-    public function getFilter(): FilterInterface
+    public function getFilter(): PredicateInterface
     {
         return $this->filter;
     }
