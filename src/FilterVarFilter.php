@@ -44,19 +44,26 @@ final class FilterVarFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if ($this->filter !== FILTER_VALIDATE_BOOLEAN) {
-            return filter_var($value, $this->filter, $this->options) !== false;
-        }
-
         $options = $this->options;
+        $boolean = $this->filter === FILTER_VALIDATE_BOOLEAN;
 
-        if (is_array($options)) {
-            $options['flags'] = ($options['flags'] ?? 0) | FILTER_NULL_ON_FAILURE;
-        } else {
-            $options |= FILTER_NULL_ON_FAILURE;
+        if ($boolean) {
+            if (is_array($options)) {
+                $options['flags'] = ($options['flags'] ?? 0) | FILTER_NULL_ON_FAILURE;
+            } else {
+                $options |= FILTER_NULL_ON_FAILURE;
+            }
         }
 
-        return filter_var($value, $this->filter, $options) !== null;
+        $result = filter_var($value, $this->filter, $options);
+        $flags = self::flags($options);
+        $arrayMode = ($flags & (FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY)) !== 0;
+
+        if ($arrayMode && is_array($result)) {
+            return !self::containsFailure($result, $boolean);
+        }
+
+        return $boolean ? $result !== null : $result !== false;
     }
 
     private static function isKnownFilter(int $filter): bool
@@ -95,6 +102,30 @@ final class FilterVarFilter extends AbstractFilter
                 throw new \InvalidArgumentException('FILTER_CALLBACK requires a callable option');
             }
         }
+    }
+
+    private static function flags(array|int $options): int
+    {
+        return is_int($options) ? $options : ($options['flags'] ?? 0);
+    }
+
+    private static function containsFailure(array $values, bool $boolean): bool
+    {
+        foreach ($values as $value) {
+            if (is_array($value)) {
+                if (self::containsFailure($value, $boolean)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if ($boolean ? $value === null : $value === false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function isValidRegexp(string $regexp): bool
