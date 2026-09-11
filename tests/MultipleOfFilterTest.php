@@ -40,6 +40,12 @@ it('supports exact scientific notation with very large exponents', function (): 
         ->and((new MultipleOfFilter('4e100'))->accept('1e101'))->toBeFalse();
 });
 
+it('handles float values exactly before attempting a finite float fallback', function (): void {
+    expect((new MultipleOfFilter('1e10000'))->accept(0.0))->toBeTrue()
+        ->and((new MultipleOfFilter('1e-10000'))->accept(1.0))->toBeTrue()
+        ->and((new MultipleOfFilter('3e-10000'))->accept(1.0))->toBeFalse();
+});
+
 dataset('invalid divisors', [
     'zero' => 0.0,
     'negative zero' => -0.0,
