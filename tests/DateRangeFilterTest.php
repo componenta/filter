@@ -63,6 +63,24 @@ it('supports an explicit timezone for local date strings', function (): void {
         ->and($filter->getTimezone())->toBe($timezone);
 });
 
+it('rejects local times normalized through a DST gap', function (): void {
+    $timezone = new DateTimeZone('Europe/Copenhagen');
+
+    expect(fn() => new DateRangeFilter(
+        '2026-03-29 02:30:00',
+        '2026-03-29 04:00:00',
+        timezone: $timezone,
+    ))->toThrow(InvalidArgumentException::class);
+
+    $filter = new DateRangeFilter(
+        '2026-03-29 01:00:00',
+        '2026-03-29 04:00:00',
+        timezone: $timezone,
+    );
+
+    expect($filter->accept('2026-03-29 02:30:00'))->toBeFalse();
+});
+
 it('accepts DateTimeInterface values without reparsing through strings', function (): void {
     $filter = new DateRangeFilter(
         new DateTimeImmutable('2026-06-01T10:00:00+00:00'),
