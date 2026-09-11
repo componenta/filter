@@ -16,6 +16,10 @@ it('rejects an unknown filter id at construction time', function (): void {
     new FilterVarFilter(PHP_INT_MAX);
 })->throws(InvalidArgumentException::class);
 
+it('rejects non-integer flags at construction time', function (): void {
+    new FilterVarFilter(FILTER_VALIDATE_INT, ['flags' => []]);
+})->throws(InvalidArgumentException::class);
+
 it('rejects missing and invalid regular expression options at construction time', function (array|int $options): void {
     new FilterVarFilter(FILTER_VALIDATE_REGEXP, $options);
 })->with([
