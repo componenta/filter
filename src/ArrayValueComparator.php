@@ -26,8 +26,13 @@ final class ArrayValueComparator
                 continue;
             }
 
-            if ($needle === $candidate) {
-                return true;
+            try {
+                if ($needle === $candidate) {
+                    return true;
+                }
+            } catch (\Error) {
+                // Recursive arrays cannot be compared strictly without an Error.
+                // Treat them as non-equal rather than failing the filter operation.
             }
         }
 
