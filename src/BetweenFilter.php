@@ -15,6 +15,10 @@ final class BetweenFilter extends AbstractFilter
         private readonly bool $inclusive = true,
         iterable $iterable = []
     ) {
+        if (!is_finite($min) || !is_finite($max) || $min > $max) {
+            throw new \InvalidArgumentException('Bounds must be finite and min must not exceed max');
+        }
+
         parent::__construct($iterable);
     }
 
@@ -55,6 +59,10 @@ final class BetweenFilter extends AbstractFilter
         }
 
         $num = (float) $value;
+
+        if (!is_finite($num)) {
+            return false;
+        }
 
         if ($this->inclusive) {
             return $num >= $this->min && $num <= $this->max;
