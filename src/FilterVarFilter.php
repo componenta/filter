@@ -18,6 +18,7 @@ final class FilterVarFilter extends AbstractFilter
             throw new \InvalidArgumentException(sprintf('Unknown filter id: %d', $filter));
         }
 
+        self::assertValidOptions($filter, $options);
         parent::__construct($iterable);
     }
 
@@ -65,5 +66,38 @@ final class FilterVarFilter extends AbstractFilter
         $filterIds ??= array_map(filter_id(...), filter_list());
 
         return in_array($filter, $filterIds, true);
+    }
+
+    private static function assertValidOptions(int $filter, array|int $options): void
+    {
+        if ($filter === FILTER_VALIDATE_REGEXP) {
+            $regexp = is_array($options)
+                && is_array($options['options'] ?? null)
+                ? ($options['options']['regexp'] ?? null)
+                : null;
+
+            if (!is_string($regexp) || !self::isValidRegexp($regexp)) {
+                throw new \InvalidArgumentException('FILTER_VALIDATE_REGEXP requires a valid regexp option');
+            }
+        }
+
+        if ($filter === FILTER_CALLBACK) {
+            $callback = is_array($options) ? ($options['options'] ?? null) : null;
+
+            if (!is_callable($callback)) {
+                throw new \InvalidArgumentException('FILTER_CALLBACK requires a callable option');
+            }
+        }
+    }
+
+    private static function isValidRegexp(string $regexp): bool
+    {
+        set_error_handler(static fn(): bool => true, E_WARNING);
+
+        try {
+            return preg_match($regexp, '') !== false;
+        } finally {
+            restore_error_handler();
+        }
     }
 }
