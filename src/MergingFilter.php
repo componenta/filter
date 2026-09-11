@@ -67,9 +67,11 @@ class MergingFilter implements FilterInterface
 
     public function withIterable(iterable $iterable): static
     {
+        $source = is_array($iterable) ? $iterable : self::makeReplayable($iterable);
+
         $copy = clone $this;
         $copy->filters = array_map(
-            static fn(FilterInterface $filter): FilterInterface => $filter->withIterable($iterable),
+            static fn(FilterInterface $filter): FilterInterface => $filter->withIterable($source),
             $this->filters,
         );
 
@@ -79,5 +81,27 @@ class MergingFilter implements FilterInterface
     public function toArray(bool $preserveKeys = false): array
     {
         return iterator_to_array($this->getIterator(), $preserveKeys);
+    }
+
+    private static function makeReplayable(iterable $iterable): \IteratorAggregate
+    {
+        $entries = [];
+
+        foreach ($iterable as $key => $value) {
+            $entries[] = [$key, $value];
+        }
+
+        return new class($entries) implements \IteratorAggregate {
+            public function __construct(private readonly array $entries)
+            {
+            }
+
+            public function getIterator(): \Traversable
+            {
+                foreach ($this->entries as [$key, $value]) {
+                    yield $key => $value;
+                }
+            }
+        };
     }
 }
