@@ -14,6 +14,7 @@ final class FileExtensionFilter extends AbstractFilter
         private readonly bool $caseSensitive = false,
         iterable $iterable = []
     ) {
+        StringList::assert($allowedExtensions, 'allowedExtensions');
         parent::__construct($iterable);
     }
 
@@ -56,7 +57,7 @@ final class FileExtensionFilter extends AbstractFilter
         }
 
         $extension = strtolower($extension);
-        $allowed = array_map('strtolower', $this->allowedExtensions);
+        $allowed = array_map(strtolower(...), $this->allowedExtensions);
 
         return in_array($extension, $allowed, true);
     }
