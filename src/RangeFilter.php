@@ -14,6 +14,10 @@ final class RangeFilter extends AbstractFilter
         private readonly float $max,
         iterable $iterable = []
     ) {
+        if (!is_finite($min) || !is_finite($max) || $min > $max) {
+            throw new \InvalidArgumentException('Bounds must be finite and min must not exceed max');
+        }
+
         parent::__construct($iterable);
     }
 
@@ -44,6 +48,7 @@ final class RangeFilter extends AbstractFilter
         }
 
         $num = (float) $value;
-        return $num >= $this->min && $num <= $this->max;
+
+        return is_finite($num) && $num >= $this->min && $num <= $this->max;
     }
 }
