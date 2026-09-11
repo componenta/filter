@@ -11,6 +11,8 @@ final class AlphaNumericFilter extends AbstractFilter
 {
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return ctype_alnum((string) $value);
+        $stringValue = StringValue::from($value);
+
+        return $stringValue !== null && ctype_alnum($stringValue);
     }
 }
