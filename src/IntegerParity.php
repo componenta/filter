@@ -131,6 +131,6 @@ final class IntegerParity
             return $lengthComparison;
         }
 
-        return $decimal <=> $integerString;
+        return strcmp($decimal, $integerString) <=> 0;
     }
 }
