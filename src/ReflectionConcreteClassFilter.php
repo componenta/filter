@@ -13,6 +13,7 @@ final class ReflectionConcreteClassFilter extends AbstractFilter
         private readonly array $allowedClassNames,
         iterable $iterable = []
     ) {
+        StringList::assert($allowedClassNames, 'allowedClassNames');
         parent::__construct($iterable);
     }
 
