@@ -12,7 +12,7 @@ it('distinguishes a valid false boolean from validation failure', function (): v
         ->and($filter->accept('not-a-boolean'))->toBeFalse();
 });
 
-it('validates every member in filter_var array mode', function (): void {
+it('validates every member and required shape in filter_var array mode', function (): void {
     $integers = new FilterVarFilter(
         FILTER_VALIDATE_INT,
         ['flags' => FILTER_REQUIRE_ARRAY],
@@ -28,8 +28,10 @@ it('validates every member in filter_var array mode', function (): void {
 
     expect($integers->accept([1, '2', 3]))->toBeTrue()
         ->and($integers->accept([1, 'bad', 3]))->toBeFalse()
+        ->and($integers->accept('42'))->toBeFalse()
         ->and($booleans->accept(['true', false, '0']))->toBeTrue()
         ->and($booleans->accept(['true', 'not-a-boolean']))->toBeFalse()
+        ->and($booleans->accept('false'))->toBeFalse()
         ->and($forcedInteger->accept('42'))->toBeTrue()
         ->and($forcedInteger->accept('bad'))->toBeFalse();
 });
