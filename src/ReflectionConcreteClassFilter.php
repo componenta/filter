@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Componenta\Filter;
 
 /**
- * Accepts ReflectionClass elements whose class name is in the allowed list.
+ * Accepts ReflectionClass elements whose concrete class name is in the allowed list.
  */
 final class ReflectionConcreteClassFilter extends AbstractFilter
 {
@@ -29,10 +29,7 @@ final class ReflectionConcreteClassFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if (!$value instanceof \ReflectionClass) {
-            return false;
-        }
-
-        return in_array($value->getName(), $this->allowedClassNames, true);
+        return $value instanceof \ReflectionClass
+            && ConcreteClassName::contains($this->allowedClassNames, $value->getName());
     }
 }
