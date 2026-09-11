@@ -32,20 +32,16 @@ final class DateRangeFilter extends AbstractFilter
         parent::__construct($iterable);
     }
 
-    /**
-     * Creates instance from timestamps directly.
-     */
     public static function fromTimestamps(
         int $minTimestamp,
         int $maxTimestamp,
         iterable $iterable = []
     ): self {
-        $instance = new self(
-            date('Y-m-d H:i:s', $minTimestamp),
-            date('Y-m-d H:i:s', $maxTimestamp),
-            $iterable
+        return new self(
+            sprintf('@%d', $minTimestamp),
+            sprintf('@%d', $maxTimestamp),
+            $iterable,
         );
-        return $instance;
     }
 
     public function withMinDate(string $minDate): static
@@ -54,7 +50,7 @@ final class DateRangeFilter extends AbstractFilter
         if ($min === false) {
             throw new \InvalidArgumentException("Invalid date: $minDate");
         }
-        
+
         return self::fromTimestamps($min, $this->maxTimestamp, $this->iterable);
     }
 
@@ -64,7 +60,7 @@ final class DateRangeFilter extends AbstractFilter
         if ($max === false) {
             throw new \InvalidArgumentException("Invalid date: $maxDate");
         }
-        
+
         return self::fromTimestamps($this->minTimestamp, $max, $this->iterable);
     }
 
