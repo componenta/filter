@@ -13,6 +13,7 @@ final class KeyInFilter extends AbstractFilter
         private readonly array $allowedKeys,
         iterable $iterable = []
     ) {
+        KeyList::assert($allowedKeys, 'allowedKeys');
         parent::__construct($iterable);
     }
 
