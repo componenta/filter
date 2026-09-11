@@ -21,7 +21,10 @@ it('does not let floating-point tolerance swallow a real fractional remainder', 
 });
 
 it('does not mistake float quotient underflow for an integer multiple', function (): void {
-    expect((new MultipleOfFilter(1e308))->accept(1e-308))->toBeFalse()
+    $filter = new MultipleOfFilter(1e308);
+
+    expect($filter->accept(1e-308))->toBeFalse()
+        ->and($filter->accept(-1e-308))->toBeFalse()
         ->and((new MultipleOfFilter(1.0))->accept('1e-10000'))->toBeFalse();
 });
 
