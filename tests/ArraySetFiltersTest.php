@@ -35,3 +35,16 @@ it('retains scalar string-comparison compatibility', function (): void {
     expect((new ArrayIntersectFilter([1]))->accept(['1']))->toBeTrue()
         ->and((new ArrayDiffFilter([1]))->accept(['1']))->toBeFalse();
 });
+
+it('retains PHP resource string-comparison compatibility', function (): void {
+    $resource = fopen('php://memory', 'r');
+
+    try {
+        $string = (string) $resource;
+
+        expect((new ArrayIntersectFilter([$resource]))->accept([$string]))->toBeTrue()
+            ->and((new ArrayDiffFilter([$resource]))->accept([$string]))->toBeFalse();
+    } finally {
+        fclose($resource);
+    }
+});
