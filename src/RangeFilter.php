@@ -10,45 +10,47 @@ namespace Componenta\Filter;
 final class RangeFilter extends AbstractFilter
 {
     public function __construct(
-        private readonly float $min,
-        private readonly float $max,
+        private readonly int|float|string $min,
+        private readonly int|float|string $max,
         iterable $iterable = []
     ) {
-        if (!is_finite($min) || !is_finite($max) || $min > $max) {
-            throw new \InvalidArgumentException('Bounds must be finite and min must not exceed max');
+        $comparison = NumericValueComparator::compare($min, $max);
+
+        if ($comparison === null || $comparison > 0) {
+            throw new \InvalidArgumentException('Bounds must be valid numeric values and min must not exceed max');
         }
 
         parent::__construct($iterable);
     }
 
-    public function withMin(float $min): static
+    public function withMin(int|float|string $min): static
     {
         return new self($min, $this->max, $this->iterable);
     }
 
-    public function withMax(float $max): static
+    public function withMax(int|float|string $max): static
     {
         return new self($this->min, $max, $this->iterable);
     }
 
-    public function getMin(): float
+    public function getMin(): int|float|string
     {
         return $this->min;
     }
 
-    public function getMax(): float
+    public function getMax(): int|float|string
     {
         return $this->max;
     }
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if (!is_numeric($value)) {
-            return false;
-        }
+        $minComparison = NumericValueComparator::compare($value, $this->min);
+        $maxComparison = NumericValueComparator::compare($value, $this->max);
 
-        $num = (float) $value;
-
-        return is_finite($num) && $num >= $this->min && $num <= $this->max;
+        return $minComparison !== null
+            && $maxComparison !== null
+            && $minComparison >= 0
+            && $maxComparison <= 0;
     }
 }
