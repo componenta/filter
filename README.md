@@ -12,20 +12,19 @@ composer require componenta/filter
 
 - PHP 8.4+
 - `componenta/arrayable`
+- `componenta/iterator`
 
 ## Contracts
 
 Version 2 separates single-value predicates from collection operations.
 
-- `PredicateInterface` exposes only `accept()` and can be used anywhere a single value can be evaluated independently.
-- `CollectionFilterInterface` exposes iterable filtering/transformation through `getIterator()`, `withIterable()`, and `toArray()`.
+- `PredicateInterface` exposes only `accept()` and is used when one value can be evaluated without collection context.
+- `CollectionFilterInterface` exposes collection processing through `getIterator()`, `withIterable()`, and `toArray()`.
 - `FilterInterface` extends both interfaces and represents a predicate-backed collection filter.
 - `AbstractCollectionFilter` provides immutable iterable binding and `toArray()` for collection-only operators.
 - `AbstractFilter` extends `AbstractCollectionFilter` and adds predicate-backed iteration.
 
-This separation means collection-aware operators no longer expose fake predicate behavior.
-
-## Basic Predicate-backed Filtering
+## Predicate-backed Filters
 
 ```php
 use Componenta\Filter\StringFilter;
@@ -36,15 +35,11 @@ $filter->accept('value'); // true
 $filter->toArray();       // ['one', 'three']
 ```
 
-Keys are not preserved by default:
+String-oriented predicates accept only `string` and `Stringable` values. Scalars such as integers and booleans are not silently cast to strings.
 
-```php
-$filter->toArray(preserveKeys: true);
-```
+## Pure Predicates and Composition
 
-## Pure Predicates
-
-Predicate composition no longer requires iterable behavior:
+Custom predicates do not need iterable behavior:
 
 ```php
 use Componenta\Filter\ChainableFilter;
@@ -57,69 +52,84 @@ $positiveInteger = new class implements PredicateInterface {
     }
 };
 
-$filter = ChainableFilter::create($positiveInteger);
+$filter = new ChainableFilter($positiveInteger);
 $filter->accept(10); // true
 ```
 
-`Filterable`, `ChainableFilter`, `OneOfFilter`, `NotFilter`, and `RecursiveFilter` depend on `PredicateInterface`, not on `FilterInterface`.
+`Filterable`, `ChainableFilter`, `OneOfFilter`, `NotFilter`, and `RecursiveFilter` depend on `PredicateInterface`. `Filterable`/`ChainableFilter` use AND semantics; `OneOfFilter` uses OR semantics and an empty `OneOfFilter` rejects every value.
 
 ## Collection-only Operators
 
-`PercentageFilter` is a `CollectionFilterInterface` only because its result depends on the size and position of the whole iterable:
+The following operators intentionally do not implement `PredicateInterface`:
 
-```php
-use Componenta\Filter\PercentageFilter;
-
-$filter = new PercentageFilter(50, ['a', 'b', 'c', 'd']);
-$filter->toArray(); // ['a', 'b']
-```
-
-It intentionally has no `accept()` method.
-
-`MergingFilter` is also collection-only. It concatenates results from arbitrary `CollectionFilterInterface` implementations, including other collection-only operators:
+- `PercentageFilter`: the result depends on collection size and position.
+- `UniqueFilter`: uniqueness depends on values already observed in the current traversal.
+- `MergingFilter`: concatenates results from multiple `CollectionFilterInterface` instances.
 
 ```php
 use Componenta\Filter\IntFilter;
 use Componenta\Filter\MergingFilter;
 use Componenta\Filter\PercentageFilter;
+use Componenta\Filter\UniqueFilter;
 
 $filter = new MergingFilter(
     new IntFilter([1, 'two']),
     new PercentageFilter(50, ['a', 'b', 'c', 'd']),
+    new UniqueFilter([1, 1, 2]),
 );
 
-$filter->toArray(); // [1, 'a', 'b']
+$filter->toArray(); // [1, 'a', 'b', 1, 2]
 ```
 
-`withIterable()` applies a replacement source to every merged collection filter and safely replays one-shot iterables where necessary.
+`MergingFilter::withIterable()` uses `ReplayableIterator` to fan out one-shot sources lazily. Binding a generator does not consume it immediately, and each inner filter gets an independent replay cursor.
 
-## Predicate Composition
+## Exact Numeric Predicates
 
-Objects using `Filterable` return new instances when predicates are added or removed:
+`NumericFilter`, `BetweenFilter`, `RangeFilter`, `GreaterThan*`, `LessThan*`, `MultipleOfFilter`, and the parity filters do not collapse numeric strings to `float` unnecessarily.
+
+Large integers, long decimal strings, and scientific notation can therefore be compared without the `2^53` precision loss of IEEE-754 conversion. `NAN` and infinite values are rejected by value-oriented numeric predicates. Actual PHP float inputs keep their native floating-point precision; `MultipleOfFilter` uses a bounded tolerance only when the tested value itself is a float.
+
+## Date Ranges
+
+`DateRangeFilter` accepts `DateTimeInterface` or absolute ISO-like date strings. It captures a timezone at construction for local strings, preserves microsecond precision, and does not accept relative expressions such as `tomorrow` or silently normalized impossible dates.
 
 ```php
-$next = $filterable->withFilter($predicate);
-$sameWithout = $next->withoutFilter($predicate);
+$range = new DateRangeFilter(
+    '2026-01-01 00:00:00',
+    '2026-12-31 23:59:59',
+    timezone: new DateTimeZone('Europe/Copenhagen'),
+);
 ```
 
-`Filterable::accept()` uses AND semantics. `OneOfFilter::accept()` uses OR semantics and returns `false` when no predicates are configured.
+## Recursive Filtering
+
+`RecursiveFilter` detects iterable-object cycles and also enforces `maxDepth` (default `64`) so recursive arrays cannot recurse indefinitely.
+
+```php
+$filter = new RecursiveFilter($predicate, maxDepth: 32);
+```
+
+## Random Filtering
+
+`RandomFilter` uses an isolated `Random\Randomizer` instead of the process-global `mt_rand()` state. Inject a `Randomizer` when deterministic seeded behavior is needed.
 
 ## Validation
 
-Invalid filter configuration is rejected early with `InvalidArgumentException` where the filter cannot operate safely, including invalid ranges, regular expressions, `filter_var()` configurations, probabilities, percentages, and typed class/string lists.
+Invalid configuration is rejected early with `InvalidArgumentException` where safe execution would otherwise be impossible. This includes invalid numeric/date ranges, regular expressions, `filter_var()` IDs/options, probabilities, percentages, and typed class/string/key lists.
 
 ## Breaking Changes from 1.x
 
 - `FilterInterface` is now the intersection of `PredicateInterface` and `CollectionFilterInterface`.
-- `PercentageFilter` no longer extends `AbstractFilter` and no longer has `accept()`.
-- `MergingFilter` no longer implements `FilterInterface` and no longer has `accept()`.
-- `MergingFilter` accepts `CollectionFilterInterface` instances, not only predicate-backed filters.
-- Predicate composition APIs accept `PredicateInterface`, so custom predicates no longer need iterable methods.
-- `AbstractFilter` now extends `AbstractCollectionFilter`.
+- `PercentageFilter`, `UniqueFilter`, and `MergingFilter` are collection-only and have no `accept()` method.
+- Predicate composition APIs accept `PredicateInterface`; custom predicates no longer need iterable methods.
+- `MergingFilter` accepts arbitrary `CollectionFilterInterface` implementations and replays one-shot inputs lazily.
+- String predicates no longer cast arbitrary scalars to strings.
+- Numeric range thresholds support `int|float|string` and exact decimal/scientific comparison.
+- `DateRangeFilter` uses absolute deterministic parsing, a captured timezone, and microsecond precision.
+- `RandomFilter` no longer consumes global `mt_rand()` state.
+- `RecursiveFilter` has bounded recursion and cycle detection.
 
 ## Development
-
-Install development dependencies and run Pest:
 
 ```bash
 composer install
