@@ -20,6 +20,44 @@ it('rejects recursive iterable object cycles deterministically', function (): vo
         ->toThrow(RuntimeException::class, 'Recursive iterable cycle detected');
 });
 
+it('allows non-cyclic nested iterable objects', function (): void {
+    $leaf = new class implements IteratorAggregate {
+        public function getIterator(): Traversable
+        {
+            yield 'leaf' => 'accepted';
+        }
+    };
+
+    $root = new class($leaf) implements IteratorAggregate {
+        public function __construct(private readonly IteratorAggregate $leaf) {}
+
+        public function getIterator(): Traversable
+        {
+            yield 'nested' => $this->leaf;
+        }
+    };
+
+    $filter = new RecursiveFilter(new StringFilter(), iterable: $root);
+
+    expect(iterator_to_array($filter->getIterator(), false))->toBe(['accepted']);
+});
+
+it('may revisit the same iterable object after leaving its active branch', function (): void {
+    $shared = new class implements IteratorAggregate {
+        public function getIterator(): Traversable
+        {
+            yield 'value' => 'accepted';
+        }
+    };
+
+    $filter = new RecursiveFilter(
+        new StringFilter(),
+        iterable: [$shared, $shared],
+    );
+
+    expect(iterator_to_array($filter->getIterator(), false))->toBe(['accepted', 'accepted']);
+});
+
 it('bounds self-referential arrays by maximum depth', function (): void {
     $cycle = [];
     $cycle['value'] = 'accepted';
@@ -50,6 +88,17 @@ it('limits recursive array depth instead of recursing indefinitely', function ()
 
     expect(fn() => iterator_to_array($filter->getIterator(), false))
         ->toThrow(OverflowException::class, 'Maximum recursive filter depth of 2 exceeded');
+});
+
+it('enforces maximum depth exactly at the zero boundary', function (): void {
+    $filter = new RecursiveFilter(
+        new StringFilter(),
+        iterable: [['one']],
+        maxDepth: 0,
+    );
+
+    expect(fn() => iterator_to_array($filter->getIterator(), false))
+        ->toThrow(OverflowException::class, 'Maximum recursive filter depth of 0 exceeded');
 });
 
 it('supports explicitly configured finite recursive depth', function (): void {
