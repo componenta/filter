@@ -5,44 +5,18 @@ declare(strict_types=1);
 namespace Componenta\Filter;
 
 /**
- * Accepts only unique elements (first occurrence).
+ * Keeps only the first occurrence of each value in an iterable.
  *
- * Direct accept() calls retain predicate state. Each iterator keeps its own
- * uniqueness state so concurrent iterations over one filter do not interfere.
+ * This is a collection operator, not a predicate: uniqueness depends on values
+ * observed earlier in the same iteration.
  */
-final class UniqueFilter extends AbstractFilter
+final class UniqueFilter extends AbstractCollectionFilter
 {
-    /** @var array<int, mixed> */
-    private array $seen = [];
-
-    public function accept(mixed $value, string|int|null $key = null): bool
-    {
-        if (ValueComparator::contains($this->seen, $value)) {
-            return false;
-        }
-
-        $this->seen[] = $value;
-
-        return true;
-    }
-
     public function getIterator(): \Generator
-    {
-        $this->seen = [];
-
-        return self::iterateUnique($this->iterable);
-    }
-
-    public function __clone(): void
-    {
-        $this->seen = [];
-    }
-
-    private static function iterateUnique(iterable $iterable): \Generator
     {
         $seen = [];
 
-        foreach ($iterable as $key => $value) {
+        foreach ($this->iterable as $key => $value) {
             if (ValueComparator::contains($seen, $value)) {
                 continue;
             }
