@@ -17,7 +17,7 @@ use Componenta\Filter\StartsWithFilter;
 use Componenta\Filter\StringEqualsAnyFilter;
 use Componenta\Filter\StringEqualsFilter;
 
-dataset('string-coercing filters', [
+dataset('string-value filters', [
     'alphanumeric' => [static fn() => new AlphaNumericFilter()],
     'contains' => [static fn() => new ContainsFilter('value')],
     'starts with' => [static fn() => new StartsWithFilter('value')],
@@ -36,13 +36,20 @@ dataset('string-coercing filters', [
 
 it('rejects non-stringable objects without throwing', function (Closure $factory): void {
     expect($factory()->accept(new stdClass()))->toBeFalse();
-})->with('string-coercing filters');
+})->with('string-value filters');
+
+it('rejects scalar values instead of coercing them to strings', function (Closure $factory): void {
+    expect($factory()->accept(123))->toBeFalse()
+        ->and($factory()->accept(1.25))->toBeFalse()
+        ->and($factory()->accept(true))->toBeFalse()
+        ->and($factory()->accept(null))->toBeFalse();
+})->with('string-value filters');
 
 it('does not treat arrays as the literal word Array', function (): void {
     expect((new AlphaNumericFilter())->accept([]))->toBeFalse();
 });
 
-it('continues to support Stringable values', function (): void {
+it('continues to support Stringable values where string-like values are accepted', function (): void {
     $value = new class implements Stringable {
         public function __toString(): string
         {
