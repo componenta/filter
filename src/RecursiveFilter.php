@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Componenta\Filter;
 
 /**
- * Applies a filter recursively to nested iterables.
+ * Applies a predicate recursively to nested iterables.
  */
 final class RecursiveFilter extends AbstractFilter
 {
     public function __construct(
-        private readonly FilterInterface $filter,
+        private readonly PredicateInterface $filter,
         private readonly bool $yieldNestedAsArray = false,
         iterable $iterable = []
     ) {
         parent::__construct($iterable);
     }
 
-    public function withFilter(FilterInterface $filter): static
+    public function withFilter(PredicateInterface $filter): static
     {
         return new self($filter, $this->yieldNestedAsArray, $this->iterable);
     }
@@ -27,7 +27,7 @@ final class RecursiveFilter extends AbstractFilter
         return new self($this->filter, $yieldNestedAsArray, $this->iterable);
     }
 
-    public function getFilter(): FilterInterface
+    public function getFilter(): PredicateInterface
     {
         return $this->filter;
     }
