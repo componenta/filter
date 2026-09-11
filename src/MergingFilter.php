@@ -23,49 +23,30 @@ class MergingFilter implements FilterInterface
         $this->filters = $filters;
     }
 
-    /**
-     * Adds a filter to the merge chain.
-     *
-     * @param FilterInterface $filter The filter to add.
-     * @return static New instance with the added filter.
-     */
     public function withFilter(FilterInterface $filter): static
     {
         $copy = clone $this;
         $copy->filters[] = $filter;
+
         return $copy;
     }
 
-    /**
-     * Removes a filter from the merge chain.
-     *
-     * @param FilterInterface $filter The filter to remove.
-     * @return static New instance without the specified filter.
-     */
     public function withoutFilter(FilterInterface $filter): static
     {
         $copy = clone $this;
         $copy->filters = array_values(
-            array_filter($this->filters, static fn($f) => $f !== $filter)
+            array_filter($this->filters, static fn(FilterInterface $candidate): bool => $candidate !== $filter),
         );
+
         return $copy;
     }
 
-    /**
-     * Returns all filters in the chain.
-     *
-     * @return FilterInterface[]
-     */
+    /** @return FilterInterface[] */
     public function getFilters(): array
     {
         return $this->filters;
     }
 
-    /**
-     * Iterates over all filters, yielding their results sequentially.
-     *
-     * @return \Generator
-     */
     public function getIterator(): \Generator
     {
         foreach ($this->filters as $filter) {
@@ -73,35 +54,28 @@ class MergingFilter implements FilterInterface
         }
     }
 
-    /**
-     * MergingFilter itself does not filter - each inner filter does.
-     *
-     * @param mixed $value The value (unused).
-     * @param string|int|null $key The key (unused).
-     * @return bool Always returns true.
-     */
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return true;
+        foreach ($this->filters as $filter) {
+            if ($filter->accept($value, $key)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    /**
-     * Not applicable for MergingFilter - use constructor instead.
-     *
-     * @param iterable $iterable Ignored.
-     * @return static Returns self (no-op).
-     */
     public function withIterable(iterable $iterable): static
     {
-        return $this;
+        $copy = clone $this;
+        $copy->filters = array_map(
+            static fn(FilterInterface $filter): FilterInterface => $filter->withIterable($iterable),
+            $this->filters,
+        );
+
+        return $copy;
     }
 
-    /**
-     * Converts merged results to an array.
-     *
-     * @param bool $preserveKeys If true, preserve original keys (may cause overwrites).
-     * @return array
-     */
     public function toArray(bool $preserveKeys = false): array
     {
         return iterator_to_array($this->getIterator(), $preserveKeys);
