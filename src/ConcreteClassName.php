@@ -17,6 +17,13 @@ final class ConcreteClassName
             return true;
         }
 
+        if (!class_exists($candidate, false)
+            && !interface_exists($candidate, false)
+            && !enum_exists($candidate, false)
+        ) {
+            return false;
+        }
+
         try {
             return strcasecmp(
                 $actual,
