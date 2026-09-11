@@ -39,7 +39,14 @@ final class LengthRangeFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        $length = strlen((string) $value);
+        $stringValue = StringValue::from($value);
+
+        if ($stringValue === null) {
+            return false;
+        }
+
+        $length = strlen($stringValue);
+
         return $length >= $this->minLength && $length <= $this->maxLength;
     }
 }
