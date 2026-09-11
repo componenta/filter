@@ -39,7 +39,11 @@ final class StringEqualsAnyFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        $stringValue = (string) $value;
+        $stringValue = StringValue::from($value);
+
+        if ($stringValue === null) {
+            return false;
+        }
 
         if ($this->caseSensitive) {
             return in_array($stringValue, $this->allowed, true);
