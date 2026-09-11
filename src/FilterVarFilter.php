@@ -59,8 +59,8 @@ final class FilterVarFilter extends AbstractFilter
         $flags = self::flags($options);
         $arrayMode = ($flags & (FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY)) !== 0;
 
-        if ($arrayMode && is_array($result)) {
-            return !self::containsFailure($result, $boolean);
+        if ($arrayMode) {
+            return is_array($result) && !self::containsFailure($result, $boolean);
         }
 
         return $boolean ? $result !== null : $result !== false;
