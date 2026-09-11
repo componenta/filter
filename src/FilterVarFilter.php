@@ -70,6 +70,13 @@ final class FilterVarFilter extends AbstractFilter
 
     private static function assertValidOptions(int $filter, array|int $options): void
     {
+        if (is_array($options)
+            && array_key_exists('flags', $options)
+            && !is_int($options['flags'])
+        ) {
+            throw new \InvalidArgumentException('filter_var flags must be an integer');
+        }
+
         if ($filter === FILTER_VALIDATE_REGEXP) {
             $regexp = is_array($options)
                 && is_array($options['options'] ?? null)
