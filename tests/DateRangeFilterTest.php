@@ -20,3 +20,11 @@ it('preserves exact timestamps across an ambiguous DST hour', function (): void 
         date_default_timezone_set($previousTimezone);
     }
 });
+
+it('rejects a date range whose minimum is after its maximum', function (): void {
+    new DateRangeFilter('2026-12-31', '2026-01-01');
+})->throws(InvalidArgumentException::class);
+
+it('rejects reversed timestamp bounds', function (): void {
+    DateRangeFilter::fromTimestamps(2, 1);
+})->throws(InvalidArgumentException::class);
