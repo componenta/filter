@@ -26,6 +26,9 @@ final class DateRangeFilter extends AbstractFilter
         if ($max === false) {
             throw new \InvalidArgumentException("Invalid max date format: $maxDate");
         }
+        if ($min > $max) {
+            throw new \InvalidArgumentException('Minimum date must not be after maximum date');
+        }
 
         $this->minTimestamp = $min;
         $this->maxTimestamp = $max;
