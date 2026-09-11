@@ -44,10 +44,9 @@ it('keeps distinct recursive arrays unique without throwing', function (): void 
     $right = [];
     $right['self'] = &$right;
 
-    $filter = new UniqueFilter();
+    $filter = new UniqueFilter([$left, $right]);
 
-    expect($filter->accept($left))->toBeTrue()
-        ->and($filter->accept($right))->toBeTrue();
+    expect(iterator_to_array($filter->getIterator(), false))->toHaveCount(2);
 });
 
 it('handles recursive array properties safely', function (): void {
