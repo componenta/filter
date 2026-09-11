@@ -32,6 +32,12 @@ final class ArrayDiffFilter extends AbstractFilter
             return false;
         }
 
-        return array_diff($value, $this->excluded) == $value;
+        foreach ($value as $item) {
+            if (ArrayValueComparator::contains($this->excluded, $item)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
