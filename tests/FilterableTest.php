@@ -5,9 +5,9 @@ declare(strict_types=1);
 use Componenta\Filter\CallbackFilter;
 use Componenta\Filter\Filterable;
 use Componenta\Filter\FilterableInterface;
-use Componenta\Filter\FilterInterface;
+use Componenta\Filter\PredicateInterface;
 
-it('initializes directly from a single filter instance', function (): void {
+it('initializes directly from a single predicate instance', function (): void {
     $filter = new CallbackFilter(static fn(mixed $value): bool => $value === 'accepted');
     $filterable = new FilterableFixture($filter);
 
@@ -16,7 +16,21 @@ it('initializes directly from a single filter instance', function (): void {
         ->and($filterable->accept('rejected'))->toBeFalse();
 });
 
-it('returns new instances when filters are added or removed', function (): void {
+it('accepts pure predicates without iterable filter behavior', function (): void {
+    $predicate = new class implements PredicateInterface {
+        public function accept(mixed $value, string|int|null $key = null): bool
+        {
+            return $value === 42;
+        }
+    };
+
+    $filterable = new FilterableFixture($predicate);
+
+    expect($filterable->accept(42))->toBeTrue()
+        ->and($filterable->accept(41))->toBeFalse();
+});
+
+it('returns new instances when predicates are added or removed', function (): void {
     $filter = new CallbackFilter(static fn(mixed $value): bool => is_int($value));
     $filterable = new FilterableFixture();
 
@@ -30,7 +44,7 @@ it('returns new instances when filters are added or removed', function (): void 
         ->and($withoutFilter->hasFilter($filter))->toBeFalse();
 });
 
-it('honors prepend order when evaluating filters', function (): void {
+it('honors prepend order when evaluating predicates', function (): void {
     $calls = [];
 
     $first = new CallbackFilter(function () use (&$calls): bool {
@@ -52,7 +66,7 @@ it('honors prepend order when evaluating filters', function (): void {
     expect($calls)->toBe(['prepended', 'first']);
 });
 
-it('requires every filter to accept a value', function (): void {
+it('requires every predicate to accept a value', function (): void {
     $filterable = (new FilterableFixture())
         ->withFilter(new CallbackFilter(static fn(mixed $value): bool => is_int($value)))
         ->withFilter(new CallbackFilter(static fn(mixed $value): bool => $value > 10));
@@ -62,7 +76,7 @@ it('requires every filter to accept a value', function (): void {
         ->and($filterable->accept(15))->toBeTrue();
 });
 
-it('reindexes the public filter list after removing a middle filter', function (): void {
+it('reindexes the public predicate list after removing a middle predicate', function (): void {
     $first = new CallbackFilter(static fn(): bool => true);
     $middle = new CallbackFilter(static fn(): bool => true);
     $last = new CallbackFilter(static fn(): bool => true);
@@ -73,8 +87,8 @@ it('reindexes the public filter list after removing a middle filter', function (
     expect($filterable->getFilters())->toBe([$first, $last]);
 });
 
-it('rejects invalid filters during construction', function (): void {
-    new FilterableFixture(['not-a-filter']);
+it('rejects invalid predicates during construction', function (): void {
+    new FilterableFixture(['not-a-predicate']);
 })->throws(InvalidArgumentException::class);
 
 final class FilterableFixture implements FilterableInterface
@@ -82,9 +96,9 @@ final class FilterableFixture implements FilterableInterface
     use Filterable;
 
     /**
-     * @param iterable<FilterInterface>|FilterInterface $filters
+     * @param iterable<PredicateInterface>|PredicateInterface $filters
      */
-    public function __construct(iterable|FilterInterface $filters = [])
+    public function __construct(iterable|PredicateInterface $filters = [])
     {
         $this->initFilters($filters);
     }
