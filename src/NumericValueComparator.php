@@ -47,13 +47,57 @@ final class NumericValueComparator
         return $leftSign > 0 ? $digitComparison : -$digitComparison;
     }
 
+    /**
+     * Checks mathematically exact divisibility for decimal values.
+     *
+     * @return bool|null Null when either value is invalid or the divisor is zero.
+     */
+    public static function isMultipleOf(mixed $value, mixed $divisor): ?bool
+    {
+        $value = self::parse($value);
+        $divisor = self::parse($divisor);
+
+        if ($value === null || $divisor === null || $divisor[0] === 0) {
+            return null;
+        }
+
+        if ($value[0] === 0) {
+            return true;
+        }
+
+        [, $valueDigits, , $valueScale] = $value;
+        [, $divisorDigits, , $divisorScale] = $divisor;
+
+        [$valueDigits, $valueScale] = self::stripTrailingZeros($valueDigits, $valueScale);
+        [$divisorDigits, $divisorScale] = self::stripTrailingZeros($divisorDigits, $divisorScale);
+
+        [$divisorTwos, $coprimeDivisor] = self::factorOut($divisorDigits, 2);
+        [$divisorFives, $coprimeDivisor] = self::factorOut($coprimeDivisor, 5);
+        [$valueTwos] = self::factorOut($valueDigits, 2);
+        [$valueFives] = self::factorOut($valueDigits, 5);
+
+        if (!self::isUnsignedDivisible($valueDigits, $coprimeDivisor)) {
+            return false;
+        }
+
+        $requiredPowerOfTen = max(
+            0,
+            $divisorTwos - $valueTwos,
+            $divisorFives - $valueFives,
+        );
+
+        $minimumValueScale = self::addSmallInteger($divisorScale, $requiredPowerOfTen);
+
+        return self::compareSignedInteger($valueScale, $minimumValueScale) >= 0;
+    }
+
     public static function isValid(mixed $value): bool
     {
         return self::parse($value) !== null;
     }
 
     /**
-     * @return array{-1|0|1, string, array{-1|0|1, string}}|null
+     * @return array{-1|0|1, string, array{-1|0|1, string}, array{-1|0|1, string}}|null
      */
     private static function parse(mixed $value): ?array
     {
@@ -91,13 +135,90 @@ final class NumericValueComparator
         $digits = ltrim($integer . $fraction, '0');
 
         if ($digits === '') {
-            return [0, '0', [0, '0']];
+            return [0, '0', [0, '0'], [0, '0']];
         }
 
         $exponent = self::parseSignedInteger($matches[4] ?? null);
-        $order = self::addSmallInteger($exponent, strlen($digits) - strlen($fraction));
+        $scale = self::addSmallInteger($exponent, -strlen($fraction));
+        $order = self::addSmallInteger($scale, strlen($digits));
 
-        return [$sign, $digits, $order];
+        return [$sign, $digits, $order, $scale];
+    }
+
+    /**
+     * @param array{-1|0|1, string} $scale
+     * @return array{string, array{-1|0|1, string}}
+     */
+    private static function stripTrailingZeros(string $digits, array $scale): array
+    {
+        $stripped = rtrim($digits, '0');
+        $count = strlen($digits) - strlen($stripped);
+
+        return [$stripped, self::addSmallInteger($scale, $count)];
+    }
+
+    /**
+     * @return array{int<0, max>, string}
+     */
+    private static function factorOut(string $value, int $factor): array
+    {
+        $count = 0;
+
+        while ($value !== '0') {
+            [$quotient, $remainder] = self::divideUnsignedBySmall($value, $factor);
+
+            if ($remainder !== 0) {
+                break;
+            }
+
+            $value = $quotient;
+            $count++;
+        }
+
+        return [$count, $value];
+    }
+
+    /** @return array{string, int} */
+    private static function divideUnsignedBySmall(string $value, int $divisor): array
+    {
+        $remainder = 0;
+        $quotient = '';
+
+        for ($i = 0, $length = strlen($value); $i < $length; $i++) {
+            $number = ($remainder * 10) + (ord($value[$i]) - 48);
+            $digit = intdiv($number, $divisor);
+            $remainder = $number % $divisor;
+
+            if ($quotient !== '' || $digit !== 0) {
+                $quotient .= (string) $digit;
+            }
+        }
+
+        return [$quotient === '' ? '0' : $quotient, $remainder];
+    }
+
+    private static function isUnsignedDivisible(string $numerator, string $denominator): bool
+    {
+        if ($denominator === '1') {
+            return true;
+        }
+
+        if (self::compareUnsigned($numerator, $denominator) < 0) {
+            return false;
+        }
+
+        $remainder = '0';
+
+        for ($i = 0, $length = strlen($numerator); $i < $length; $i++) {
+            $remainder = ltrim(($remainder === '0' ? '' : $remainder) . $numerator[$i], '0');
+            $remainder = $remainder === '' ? '0' : $remainder;
+
+            while (self::compareUnsigned($remainder, $denominator) >= 0) {
+                $remainder = self::subtractUnsigned($remainder, $denominator);
+            }
+        }
+
+        return $remainder === '0';
     }
 
     /** @return array{-1|0|1, string} */
@@ -183,11 +304,13 @@ final class NumericValueComparator
     /** @return -1|0|1 */
     private static function compareSignificands(string $left, string $right): int
     {
-        $length = max(strlen($left), strlen($right));
+        $leftLength = strlen($left);
+        $rightLength = strlen($right);
+        $length = max($leftLength, $rightLength);
 
         for ($i = 0; $i < $length; $i++) {
-            $leftDigit = $i < strlen($left) ? ord($left[$i]) : 48;
-            $rightDigit = $i < strlen($right) ? ord($right[$i]) : 48;
+            $leftDigit = $i < $leftLength ? ord($left[$i]) : 48;
+            $rightDigit = $i < $rightLength ? ord($right[$i]) : 48;
 
             if ($leftDigit !== $rightDigit) {
                 return $leftDigit <=> $rightDigit;
