@@ -59,8 +59,6 @@ final class RandomFilter extends AbstractFilter
             return true;
         }
 
-        $threshold = $this->probability * (PHP_INT_MAX + 1.0);
-
-        return $this->randomizer->getInt(0, PHP_INT_MAX) < $threshold;
+        return $this->randomizer->nextFloat() < $this->probability;
     }
 }
