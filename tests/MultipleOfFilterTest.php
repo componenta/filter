@@ -26,6 +26,11 @@ it('accepts large float multiples without an absolute quotient cap', function ()
     expect((new MultipleOfFilter($divisor))->accept($value))->toBeTrue();
 });
 
+it('does not infer integer quotients beyond exact float integer resolution', function (): void {
+    expect((new MultipleOfFilter(3.0))->accept(1e20))->toBeFalse()
+        ->and((new MultipleOfFilter('3'))->accept('1e20'))->toBeFalse();
+});
+
 it('does not let floating-point tolerance swallow a real fractional remainder', function (): void {
     $filter = new MultipleOfFilter(1.0);
 

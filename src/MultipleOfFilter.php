@@ -70,6 +70,10 @@ final class MultipleOfFilter extends AbstractFilter
             return false;
         }
 
+        if (abs($quotient) > 9_007_199_254_740_992.0) {
+            return false;
+        }
+
         $nearestInteger = round($quotient);
 
         if (($nearestInteger * $divisor) === $number) {
