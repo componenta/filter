@@ -13,7 +13,7 @@ final class RegexFilter extends AbstractFilter
         private readonly string $pattern,
         iterable $iterable = []
     ) {
-        if (@preg_match($pattern, '') === false) {
+        if (!self::isValidPattern($pattern)) {
             throw new \InvalidArgumentException(sprintf('Invalid regular expression: %s', $pattern));
         }
 
@@ -35,5 +35,16 @@ final class RegexFilter extends AbstractFilter
         $stringValue = StringValue::from($value);
 
         return $stringValue !== null && preg_match($this->pattern, $stringValue) === 1;
+    }
+
+    private static function isValidPattern(string $pattern): bool
+    {
+        set_error_handler(static fn(): bool => true, E_WARNING);
+
+        try {
+            return preg_match($pattern, '') !== false;
+        } finally {
+            restore_error_handler();
+        }
     }
 }
