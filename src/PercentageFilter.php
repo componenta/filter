@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Componenta\Filter;
 
 /**
- * Accepts a percentage of elements from the beginning of an iterable.
+ * Keeps a percentage of elements from the beginning of an iterable.
  *
- * The percentage applies to the collection as a whole, so this filter cannot be
- * evaluated meaningfully through accept() without collection context.
+ * This is a collection operator, not a predicate: acceptance depends on the
+ * size and position of the complete iterable.
  */
-final class PercentageFilter extends AbstractFilter
+final class PercentageFilter extends AbstractCollectionFilter
 {
     public function __construct(
         private readonly float $percentage,
@@ -31,11 +31,6 @@ final class PercentageFilter extends AbstractFilter
     public function getPercentage(): float
     {
         return $this->percentage;
-    }
-
-    public function accept(mixed $value, string|int|null $key = null): bool
-    {
-        throw new \LogicException('PercentageFilter requires collection context; iterate over the filter instead');
     }
 
     public function getIterator(): \Generator
