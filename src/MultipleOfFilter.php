@@ -7,9 +7,9 @@ namespace Componenta\Filter;
 /**
  * Accepts elements whose numeric value is a multiple of the divisor.
  *
- * Integer and numeric-string inputs are compared exactly. When either operand
- * is a PHP float, a small tolerance is used to account for binary floating-point
- * representation noise already present in the input value.
+ * Decimal values are checked exactly first. When an actual PHP float is
+ * involved and the exact decimal representation is not divisible, a bounded
+ * tolerance is used only to account for binary floating-point noise.
  */
 final class MultipleOfFilter extends AbstractFilter
 {
@@ -38,23 +38,21 @@ final class MultipleOfFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        if (is_float($value) || is_float($this->divisor)) {
-            return $this->acceptFloat($value);
+        $exact = NumericValueComparator::isMultipleOf($value, $this->divisor);
+
+        if ($exact === null) {
+            return false;
         }
 
-        return NumericValueComparator::isMultipleOf($value, $this->divisor) ?? false;
+        if ($exact || (!is_float($value) && !is_float($this->divisor))) {
+            return $exact;
+        }
+
+        return $this->acceptFloat($value);
     }
 
     private function acceptFloat(mixed $value): bool
     {
-        if (!is_int($value) && !is_float($value) && !is_string($value)) {
-            return false;
-        }
-
-        if (!NumericValueComparator::isValid($value)) {
-            return false;
-        }
-
         $number = (float) $value;
         $divisor = (float) $this->divisor;
 
