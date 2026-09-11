@@ -5,25 +5,23 @@ declare(strict_types=1);
 namespace Componenta\Filter;
 
 /**
- * MergingFilter combines results from multiple filters.
+ * Concatenates results from multiple collection filters.
  *
- * Each filter operates on its own data source. Results are merged
- * in the order filters were added (using yield from).
+ * This is a collection operator, not a predicate. Each inner filter operates
+ * on its own iterable source unless withIterable() is used to replace all
+ * sources at once.
  */
-class MergingFilter implements FilterInterface
+class MergingFilter implements CollectionFilterInterface
 {
-    /** @var FilterInterface[] */
+    /** @var CollectionFilterInterface[] */
     private array $filters = [];
 
-    /**
-     * @param FilterInterface ...$filters Filters whose results will be merged.
-     */
-    public function __construct(FilterInterface ...$filters)
+    public function __construct(CollectionFilterInterface ...$filters)
     {
         $this->filters = $filters;
     }
 
-    public function withFilter(FilterInterface $filter): static
+    public function withFilter(CollectionFilterInterface $filter): static
     {
         $copy = clone $this;
         $copy->filters[] = $filter;
@@ -31,17 +29,20 @@ class MergingFilter implements FilterInterface
         return $copy;
     }
 
-    public function withoutFilter(FilterInterface $filter): static
+    public function withoutFilter(CollectionFilterInterface $filter): static
     {
         $copy = clone $this;
         $copy->filters = array_values(
-            array_filter($this->filters, static fn(FilterInterface $candidate): bool => $candidate !== $filter),
+            array_filter(
+                $this->filters,
+                static fn(CollectionFilterInterface $candidate): bool => $candidate !== $filter,
+            ),
         );
 
         return $copy;
     }
 
-    /** @return FilterInterface[] */
+    /** @return CollectionFilterInterface[] */
     public function getFilters(): array
     {
         return $this->filters;
@@ -54,24 +55,13 @@ class MergingFilter implements FilterInterface
         }
     }
 
-    public function accept(mixed $value, string|int|null $key = null): bool
-    {
-        foreach ($this->filters as $filter) {
-            if ($filter->accept($value, $key)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     public function withIterable(iterable $iterable): static
     {
         $source = is_array($iterable) ? $iterable : self::makeReplayable($iterable);
 
         $copy = clone $this;
         $copy->filters = array_map(
-            static fn(FilterInterface $filter): FilterInterface => $filter->withIterable($source),
+            static fn(CollectionFilterInterface $filter): CollectionFilterInterface => $filter->withIterable($source),
             $this->filters,
         );
 
