@@ -14,6 +14,7 @@ final class StringEqualsAnyFilter extends AbstractFilter
         private readonly bool $caseSensitive = true,
         iterable $iterable = []
     ) {
+        StringList::assert($allowed, 'allowed');
         parent::__construct($iterable);
     }
 
@@ -50,7 +51,7 @@ final class StringEqualsAnyFilter extends AbstractFilter
         }
 
         foreach ($this->allowed as $allowed) {
-            if (strcasecmp($stringValue, (string) $allowed) === 0) {
+            if (strcasecmp($stringValue, $allowed) === 0) {
                 return true;
             }
         }
