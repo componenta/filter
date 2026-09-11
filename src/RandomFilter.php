@@ -13,8 +13,8 @@ final class RandomFilter extends AbstractFilter
         private readonly float $probability = 0.5,
         iterable $iterable = []
     ) {
-        if ($probability < 0.0 || $probability > 1.0) {
-            throw new \InvalidArgumentException('Probability must be between 0 and 1');
+        if (!is_finite($probability) || $probability < 0.0 || $probability > 1.0) {
+            throw new \InvalidArgumentException('Probability must be a finite number between 0 and 1');
         }
 
         parent::__construct($iterable);
@@ -32,6 +32,14 @@ final class RandomFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
+        if ($this->probability === 0.0) {
+            return false;
+        }
+
+        if ($this->probability === 1.0) {
+            return true;
+        }
+
         return (mt_rand() / mt_getrandmax()) < $this->probability;
     }
 }
