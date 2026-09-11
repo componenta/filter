@@ -13,6 +13,10 @@ final class GreaterThanFilter extends AbstractFilter
         private readonly float $threshold,
         iterable $iterable = []
     ) {
+        if (!is_finite($threshold)) {
+            throw new \InvalidArgumentException('Threshold must be finite');
+        }
+
         parent::__construct($iterable);
     }
 
@@ -28,6 +32,12 @@ final class GreaterThanFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return is_numeric($value) && (float) $value > $this->threshold;
+        if (!is_numeric($value)) {
+            return false;
+        }
+
+        $number = (float) $value;
+
+        return is_finite($number) && $number > $this->threshold;
     }
 }
