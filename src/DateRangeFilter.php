@@ -11,7 +11,7 @@ namespace Componenta\Filter;
  * Relative date expressions are intentionally unsupported. Comparisons retain
  * microsecond precision. Nonexistent and ambiguous local wall times caused by
  * timezone transitions are rejected unless an explicit offset disambiguates
- * the instant.
+ * the instant. Date-only strings represent strict local midnight.
  */
 final class DateRangeFilter extends AbstractFilter
 {
@@ -40,9 +40,7 @@ final class DateRangeFilter extends AbstractFilter
             throw new \InvalidArgumentException('Invalid absolute maximum date');
         }
 
-        $comparison = self::compareInstants($min, $max);
-
-        if ($comparison > 0) {
+        if (self::compareInstants($min, $max) > 0) {
             throw new \InvalidArgumentException('Minimum date must not be after maximum date');
         }
 
@@ -150,19 +148,12 @@ final class DateRangeFilter extends AbstractFilter
         return $date;
     }
 
-    /**
-     * @param array<string, string|null> $matches
-     */
+    /** @param array<string, string|null> $matches */
     private static function matchesLocalWallTime(
         \DateTimeImmutable $date,
         array $matches,
     ): bool {
-        $time = $matches['time'] ?? null;
-
-        if ($time === null) {
-            return $date->format('Y-m-d') === $matches['date'];
-        }
-
+        $time = $matches['time'] ?? '00:00:00';
         $fraction = $matches['fraction'] ?? null;
 
         if ($fraction === null) {
@@ -181,20 +172,13 @@ final class DateRangeFilter extends AbstractFilter
         );
     }
 
-    /**
-     * @param array<string, string|null> $matches
-     */
+    /** @param array<string, string|null> $matches */
     private static function isAmbiguousLocalWallTime(
         \DateTimeImmutable $date,
         array $matches,
         \DateTimeZone $timezone,
     ): bool {
-        $time = $matches['time'] ?? null;
-
-        if ($time === null) {
-            return false;
-        }
-
+        $time = $matches['time'] ?? '00:00:00';
         $transitions = $timezone->getTransitions(
             $date->getTimestamp() - 172800,
             $date->getTimestamp() + 172800,
