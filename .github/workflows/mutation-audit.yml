@@ -1,7 +1,9 @@
 name: Mutation Audit
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - audit/filter-tdd-fixes-20260911
 
 jobs:
   mutate:
