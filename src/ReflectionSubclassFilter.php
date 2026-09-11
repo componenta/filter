@@ -13,6 +13,10 @@ final class ReflectionSubclassFilter extends AbstractFilter
         private readonly string $parentClass,
         iterable $iterable = []
     ) {
+        if (!class_exists($parentClass)) {
+            throw new \InvalidArgumentException(sprintf('Unknown parent class: %s', $parentClass));
+        }
+
         parent::__construct($iterable);
     }
 
