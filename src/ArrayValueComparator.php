@@ -13,10 +13,10 @@ final class ArrayValueComparator
 
     public static function contains(array $values, mixed $needle): bool
     {
-        $needleString = StringValue::from($needle);
+        $needleString = self::comparisonString($needle);
 
         foreach ($values as $candidate) {
-            $candidateString = StringValue::from($candidate);
+            $candidateString = self::comparisonString($candidate);
 
             if ($needleString !== null && $candidateString !== null) {
                 if ($needleString === $candidateString) {
@@ -37,5 +37,16 @@ final class ArrayValueComparator
         }
 
         return false;
+    }
+
+    private static function comparisonString(mixed $value): ?string
+    {
+        if ($value === null || is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return $value instanceof \Stringable
+            ? (string) $value
+            : null;
     }
 }
