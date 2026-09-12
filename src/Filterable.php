@@ -22,10 +22,14 @@ trait Filterable
 
         foreach ($filters as $i => $filter) {
             if (!$filter instanceof PredicateInterface) {
+                $key = is_int($i) || is_string($i)
+                    ? (string) $i
+                    : sprintf('<%s>', get_debug_type($i));
+
                 throw new \InvalidArgumentException(
                     sprintf(
                         '$filters[%s] passed to %s must implement PredicateInterface',
-                        $i,
+                        $key,
                         static::class,
                     ),
                 );

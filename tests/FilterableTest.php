@@ -111,6 +111,15 @@ it('rejects invalid predicates during construction', function (): void {
     new FilterableFixture(['not-a-predicate']);
 })->throws(InvalidArgumentException::class);
 
+it('rejects invalid predicates from traversables with non-scalar keys', function (): void {
+    $key = new stdClass();
+    $filters = (static function () use ($key): Generator {
+        yield $key => 'not-a-predicate';
+    })();
+
+    new FilterableFixture($filters);
+})->throws(InvalidArgumentException::class);
+
 final class FilterableFixture implements FilterableInterface
 {
     use Filterable;
