@@ -65,10 +65,6 @@ final class MultipleOfFilter extends AbstractFilter
             return false;
         }
 
-        if ($quotient == 0.0 && NumericValueComparator::compare($value, 0) !== 0) {
-            return false;
-        }
-
         if (abs($quotient) > 9_007_199_254_740_992.0) {
             return false;
         }
