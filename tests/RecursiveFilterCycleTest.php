@@ -146,7 +146,7 @@ it('rejects negative maximum depth', function (): void {
     new RecursiveFilter(new StringFilter(), maxDepth: -1);
 })->throws(InvalidArgumentException::class);
 
-it('does not use deprecated SplObjectStorage traversal APIs', function (): void {
+it('traverses supported recursive iterables without deprecation signals', function (): void {
     $source = new class implements IteratorAggregate {
         public function getIterator(): Traversable
         {
@@ -155,8 +155,8 @@ it('does not use deprecated SplObjectStorage traversal APIs', function (): void 
     };
 
     set_error_handler(static function (int $severity, string $message): bool {
-        if ($severity === E_DEPRECATED && str_contains($message, 'SplObjectStorage')) {
-            throw new ErrorException($message);
+        if (($severity & (E_DEPRECATED | E_USER_DEPRECATED)) !== 0) {
+            throw new ErrorException($message, 0, $severity);
         }
 
         return false;
