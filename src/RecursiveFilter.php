@@ -107,7 +107,7 @@ final class RecursiveFilter extends AbstractFilter
                 }
             }
         } finally {
-            foreach (array_reverse($trackedObjects) as $trackedObject) {
+            foreach ($trackedObjects as $trackedObject) {
                 $active->offsetUnset($trackedObject);
             }
         }
