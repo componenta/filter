@@ -83,6 +83,8 @@ final class RecursiveFilter extends AbstractFilter
             }
 
             foreach ($iterable as $key => $value) {
+                $key = self::predicateKey($key);
+
                 if (!is_iterable($value)) {
                     if ($this->accept($value, $key)) {
                         yield $key => $value;
