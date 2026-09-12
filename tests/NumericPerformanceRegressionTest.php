@@ -44,4 +44,4 @@ it('checks huge exact multiples without pathological factorization time', functi
     } finally {
         set_time_limit(0);
     }
-});
+})->group('performance');

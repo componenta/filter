@@ -44,4 +44,4 @@ it('checks huge exact divisors without pathological factorization time', functio
     } finally {
         set_time_limit(0);
     }
-});
+})->group('performance');
