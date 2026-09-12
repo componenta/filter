@@ -21,7 +21,9 @@ final class RandomFilterNestedStateEngine implements Engine
 
     public function generate(): string
     {
-        return pack('V', $this->state->counter++);
+        return $this->state->counter++ === 0
+            ? str_repeat("\0", 8)
+            : str_repeat("\xFF", 8);
     }
 }
 
@@ -54,7 +56,7 @@ it('does not consume RNG state at deterministic probability boundaries', functio
     $filter = new RandomFilter($probability, randomizer: $randomizer);
 
     expect($filter->accept('value'))->toBe($expected)
-        ->and($filter->getRandomizer()->nextFloat())->toBe($control->nextFloat());
+        ->and($randomizer->nextFloat())->toBe($control->nextFloat());
 })->with([
     'never' => [0.0, false],
     'always' => [1.0, true],
@@ -78,55 +80,78 @@ it('honors iterable binding at deterministic probability boundaries', function (
 });
 
 it('does not mutate the process-global mt_rand state', function (): void {
-    mt_srand(123456);
-    $expectedFirst = mt_rand();
-    $expectedSecond = mt_rand();
+    $autoload = dirname(__DIR__) . '/vendor/autoload.php';
+    $code = sprintf(<<<'PHP'
+require %s;
 
-    mt_srand(123456);
-    $actualFirst = mt_rand();
-    (new RandomFilter(0.5))->accept('value');
-    $actualSecond = mt_rand();
+use Componenta\Filter\RandomFilter;
 
-    expect($actualFirst)->toBe($expectedFirst)
-        ->and($actualSecond)->toBe($expectedSecond);
+mt_srand(123456);
+$expected = [mt_rand(), mt_rand()];
+
+mt_srand(123456);
+$actual = [mt_rand()];
+(new RandomFilter(0.5))->accept('value');
+$actual[] = mt_rand();
+
+echo json_encode([$expected, $actual], JSON_THROW_ON_ERROR);
+PHP, var_export($autoload, true));
+
+    $pipes = [];
+    $process = proc_open(
+        [PHP_BINARY, '-r', $code],
+        [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+        $pipes,
+    );
+
+    expect($process)->not->toBeFalse();
+
+    $output = stream_get_contents($pipes[1]);
+    $error = stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $exitCode = proc_close($process);
+
+    expect($exitCode)->toBe(0, $error);
+
+    [$expected, $actual] = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
+
+    expect($actual)->toBe($expected);
 });
 
 it('supports an injected deterministic Randomizer', function (): void {
-    $first = new RandomFilter(
+    $seed = 42;
+    $control = new Randomizer(new Mt19937($seed));
+    $filter = new RandomFilter(
         0.5,
-        randomizer: new Randomizer(new Mt19937(42)),
-    );
-    $second = new RandomFilter(
-        0.5,
-        randomizer: new Randomizer(new Mt19937(42)),
+        randomizer: new Randomizer(new Mt19937($seed)),
     );
 
-    $firstSequence = [];
-    $secondSequence = [];
+    $expected = [];
+    $actual = [];
 
     foreach (range(1, 100) as $value) {
-        $firstSequence[] = $first->accept($value);
-        $secondSequence[] = $second->accept($value);
+        $expected[] = $control->nextFloat() < 0.5;
+        $actual[] = $filter->accept($value);
     }
 
-    expect($firstSequence)->toBe($secondSequence)
-        ->and(array_unique($firstSequence))->toHaveCount(2);
+    expect($actual)->toBe($expected)
+        ->and(array_unique($actual))->toHaveCount(2);
 });
 
 it('does not share RNG state with an immutable iterable clone', function (): void {
+    $seed = 2;
+    $control = new Randomizer(new Mt19937($seed));
+    $expectedFirst = $control->nextFloat() < 0.5;
     $original = new RandomFilter(
         0.5,
-        randomizer: new Randomizer(new Mt19937(2)),
+        randomizer: new Randomizer(new Mt19937($seed)),
     );
     $changed = $original->withIterable([1, 2, 3]);
-    $control = new RandomFilter(
-        0.5,
-        randomizer: new Randomizer(new Mt19937(2)),
-    );
 
     $changed->accept('consume clone RNG');
 
-    expect($original->accept('original'))->toBe($control->accept('control'));
+    expect($original->accept('original'))->toBe($expectedFirst);
 });
 
 it('deep-copies nested custom engine state for immutable clones', function (): void {
@@ -135,42 +160,36 @@ it('deep-copies nested custom engine state for immutable clones', function (): v
         randomizer: new Randomizer(new RandomFilterNestedStateEngine()),
     );
     $changed = $original->withIterable([1, 2, 3]);
-    $control = new RandomFilter(
-        0.5,
-        randomizer: new Randomizer(new RandomFilterNestedStateEngine()),
-    );
 
-    $changed->getRandomizer()->getInt(0, PHP_INT_MAX);
-
-    expect($original->getRandomizer()->getInt(0, PHP_INT_MAX))
-        ->toBe($control->getRandomizer()->getInt(0, PHP_INT_MAX));
+    expect($changed->accept('consume clone RNG'))->toBeTrue()
+        ->and($original->accept('original still starts at first sample'))->toBeTrue()
+        ->and($changed->accept('clone advances independently'))->toBeFalse()
+        ->and($original->accept('original advances independently'))->toBeFalse();
 });
 
 it('does not share RNG state with a probability clone', function (): void {
+    $seed = 2;
+    $control = new Randomizer(new Mt19937($seed));
+    $expectedFirst = $control->nextFloat() < 0.5;
     $original = new RandomFilter(
         0.5,
-        randomizer: new Randomizer(new Mt19937(2)),
+        randomizer: new Randomizer(new Mt19937($seed)),
     );
     $changed = $original->withProbability(0.5);
-    $control = new RandomFilter(
-        0.5,
-        randomizer: new Randomizer(new Mt19937(2)),
-    );
 
     $changed->accept('consume clone RNG');
 
-    expect($original->accept('original'))->toBe($control->accept('control'));
+    expect($original->accept('original'))->toBe($expectedFirst);
 });
 
-it('copies the default secure engine for immutable clones', function (): void {
-    $original = new RandomFilter(0.5);
-    $iterableClone = $original->withIterable([1, 2, 3]);
-    $probabilityClone = $original->withProbability(0.25);
+it('keeps default secure-engine clones usable through immutable updates', function (): void {
+    $filter = new RandomFilter(0.5);
 
-    expect($iterableClone)->toBeInstanceOf(RandomFilter::class)
-        ->and($probabilityClone)->toBeInstanceOf(RandomFilter::class)
-        ->and($iterableClone->getRandomizer())->not->toBe($original->getRandomizer())
-        ->and($probabilityClone->getRandomizer())->not->toBe($original->getRandomizer());
+    $changed = $filter
+        ->withIterable([1, 2, 3])
+        ->withProbability(1.0);
+
+    expect($changed->toArray())->toBe([1, 2, 3]);
 });
 
 it('fails fast when an injected engine cannot be copied immutably', function (): void {
