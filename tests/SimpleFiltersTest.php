@@ -141,7 +141,11 @@ it('characterizes class and instanceof filters', function (): void {
         ->and((new AnyClassFilter([SimpleFilterSiblingFixture::class, SimpleFilterChildFixture::class]))->accept($child))->toBeTrue()
         ->and((new SubclassFilter(SimpleFilterParentFixture::class))->accept(SimpleFilterChildFixture::class))->toBeTrue()
         ->and((new IsInterfaceFilter())->accept(SimpleFilterContractFixture::class))->toBeTrue()
-        ->and((new IsInterfaceFilter())->accept(SimpleFilterChildFixture::class))->toBeFalse();
+        ->and((new IsInterfaceFilter())->accept(SimpleFilterChildFixture::class))->toBeFalse()
+        ->and((new InstanceofFilter(SimpleFilterParentFixture::class))->accept('not-an-object'))->toBeFalse()
+        ->and((new InstanceofAnyFilter([SimpleFilterParentFixture::class]))->accept('not-an-object'))->toBeFalse()
+        ->and((new ConcreteClassFilter(SimpleFilterChildFixture::class))->accept('not-an-object'))->toBeFalse()
+        ->and((new AnyClassFilter([SimpleFilterChildFixture::class]))->accept('not-an-object'))->toBeFalse();
 });
 
 it('characterizes reflection and property existence filters', function (): void {
