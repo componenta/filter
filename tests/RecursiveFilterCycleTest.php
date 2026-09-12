@@ -20,6 +20,16 @@ it('rejects recursive iterable object cycles deterministically', function (): vo
         ->toThrow(RuntimeException::class, 'Recursive iterable cycle detected');
 });
 
+it('rejects direct Iterator self-cycles by object identity', function (): void {
+    $cycle = new ArrayIterator();
+    $cycle['self'] = $cycle;
+
+    $filter = new RecursiveFilter(new StringFilter(), iterable: $cycle);
+
+    expect(fn() => iterator_to_array($filter->getIterator(), false))
+        ->toThrow(RuntimeException::class, 'Recursive iterable cycle detected');
+});
+
 it('rejects cycles inside IteratorAggregate chains before foreach recursion', function (): void {
     $factory = static fn() => new class implements IteratorAggregate {
         public ?IteratorAggregate $next = null;
