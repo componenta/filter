@@ -53,6 +53,23 @@ it('adds and removes predicates without mutating earlier instances', function ()
         ->and($withoutFilter->accept('not-an-int'))->toBeTrue();
 });
 
+it('appends predicates by default and preserves short-circuit order', function (): void {
+    $calls = [];
+    $first = new CallbackFilter(static function () use (&$calls): bool {
+        $calls[] = 'first';
+        return true;
+    });
+    $second = new CallbackFilter(static function () use (&$calls): bool {
+        $calls[] = 'second';
+        return false;
+    });
+
+    $filterable = (new FilterableFixture($first))->withFilter($second);
+
+    expect($filterable->accept('value'))->toBeFalse()
+        ->and($calls)->toBe(['first', 'second']);
+});
+
 it('evaluates a prepended predicate first and short-circuits on rejection', function (): void {
     $mustNotRun = new CallbackFilter(static function (): bool {
         throw new RuntimeException('later predicate must be short-circuited');
