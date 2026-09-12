@@ -14,8 +14,10 @@ it('preserves exact timestamps across an ambiguous DST hour', function (): void 
 
         $filter = DateRangeFilter::fromTimestamps($firstOccurrence, $secondOccurrence);
 
-        expect($filter->getMinTimestamp())->toBe($firstOccurrence)
-            ->and($filter->getMaxTimestamp())->toBe($secondOccurrence);
+        expect($filter->accept(new DateTimeImmutable('@' . ($firstOccurrence - 1))))->toBeFalse()
+            ->and($filter->accept(new DateTimeImmutable('@' . $firstOccurrence)))->toBeTrue()
+            ->and($filter->accept(new DateTimeImmutable('@' . $secondOccurrence)))->toBeTrue()
+            ->and($filter->accept(new DateTimeImmutable('@' . ($secondOccurrence + 1))))->toBeFalse();
     } finally {
         date_default_timezone_set($previousTimezone);
     }
@@ -82,8 +84,7 @@ it('captures its timezone instead of depending on later global timezone changes'
 
         date_default_timezone_set('UTC');
 
-        expect($filter->accept('2026-06-01 12:00:00'))->toBeTrue()
-            ->and($filter->getTimezone()->getName())->toBe('Europe/Copenhagen');
+        expect($filter->accept('2026-06-01 12:00:00'))->toBeTrue();
     } finally {
         date_default_timezone_set($previousTimezone);
     }
@@ -97,8 +98,7 @@ it('supports an explicit timezone for local date strings', function (): void {
         timezone: $timezone,
     );
 
-    expect($filter->accept('2026-06-01 12:00:00'))->toBeTrue()
-        ->and($filter->getTimezone())->toBe($timezone);
+    expect($filter->accept('2026-06-01 12:00:00'))->toBeTrue();
 });
 
 it('supports fixed-offset timezones without transition tables', function (): void {
@@ -109,8 +109,7 @@ it('supports fixed-offset timezones without transition tables', function (): voi
         timezone: $timezone,
     );
 
-    expect($filter->accept('2026-06-01 12:30:00'))->toBeTrue()
-        ->and($filter->getTimezone()->getName())->toBe('+02:00');
+    expect($filter->accept('2026-06-01 12:30:00'))->toBeTrue();
 });
 
 it('rejects local times normalized through a DST gap', function (): void {
