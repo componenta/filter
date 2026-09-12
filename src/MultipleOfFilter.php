@@ -51,16 +51,15 @@ final class MultipleOfFilter extends AbstractFilter
         return $this->acceptFloat($value);
     }
 
-    private function acceptFloat(mixed $value): bool
+    private function acceptFloat(float $value): bool
     {
-        $number = (float) $value;
         $divisor = (float) $this->divisor;
 
-        if (!is_finite($number) || !is_finite($divisor) || $divisor == 0.0) {
+        if (!is_finite($divisor) || $divisor == 0.0) {
             return false;
         }
 
-        $quotient = $number / $divisor;
+        $quotient = $value / $divisor;
 
         if (!is_finite($quotient)) {
             return false;
@@ -76,7 +75,7 @@ final class MultipleOfFilter extends AbstractFilter
 
         $nearestInteger = round($quotient);
 
-        if (($nearestInteger * $divisor) === $number) {
+        if (($nearestInteger * $divisor) === $value) {
             return true;
         }
 
