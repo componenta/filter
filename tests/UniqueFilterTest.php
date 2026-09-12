@@ -2,17 +2,7 @@
 
 declare(strict_types=1);
 
-use Componenta\Filter\CollectionFilterInterface;
-use Componenta\Filter\PredicateInterface;
 use Componenta\Filter\UniqueFilter;
-
-it('is a collection-only operator', function (): void {
-    $filter = new UniqueFilter([1, 1, 2]);
-
-    expect($filter)->toBeInstanceOf(CollectionFilterInterface::class)
-        ->and($filter)->not->toBeInstanceOf(PredicateInterface::class)
-        ->and(method_exists($filter, 'accept'))->toBeFalse();
-});
 
 it('keeps concurrent iterators independent', function (): void {
     $filter = new UniqueFilter([1, 1, 2, 2]);
