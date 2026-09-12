@@ -22,6 +22,13 @@ it('uses bounded tolerance when a float is one ulp beyond the reconstructed mult
         ->and($filter->accept(0.30000000000001))->toBeFalse();
 });
 
+it('scales float tolerance with quotient magnitude', function (): void {
+    $filter = new MultipleOfFilter(0.1);
+
+    expect($filter->accept(1.0000000000000004))->toBeTrue()
+        ->and($filter->accept(-1.0000000000000004))->toBeTrue();
+});
+
 it('uses float tolerance only for an actual float value', function (): void {
     expect((new MultipleOfFilter('0.1'))->accept(0.30000000000000004))->toBeTrue()
         ->and((new MultipleOfFilter(0.1))->accept('0.30000000000000004'))->toBeFalse()
