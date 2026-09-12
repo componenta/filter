@@ -133,7 +133,66 @@ final class FilterVarFilter extends AbstractFilter
             if (!is_callable($callback)) {
                 throw new \InvalidArgumentException('FILTER_CALLBACK requires a callable option');
             }
+
+            return;
         }
+
+        self::assertNativeOptionsSafe($filter, $options);
+    }
+
+    private static function assertNativeOptionsSafe(int $filter, array|int $options): void
+    {
+        $warning = null;
+        set_error_handler(
+            static function (int $severity, string $message) use (&$warning): bool {
+                $warning ??= $message;
+
+                return true;
+            },
+            E_WARNING,
+        );
+
+        try {
+            $probe = self::nativeOptionProbe($filter);
+
+            if ((self::flags($options) & FILTER_REQUIRE_ARRAY) !== 0) {
+                $probe = [$probe];
+            }
+
+            try {
+                filter_var($probe, $filter, $options);
+            } catch (\Filter\FilterFailedException) {
+                // The options are valid; only the representative probe failed validation.
+            } catch (\ValueError|\TypeError $exception) {
+                throw new \InvalidArgumentException(
+                    sprintf('Invalid filter_var options for filter %d', $filter),
+                    previous: $exception,
+                );
+            }
+        } finally {
+            restore_error_handler();
+        }
+
+        if ($warning !== null) {
+            throw new \InvalidArgumentException(
+                sprintf('Invalid filter_var options for filter %d: %s', $filter, $warning),
+            );
+        }
+    }
+
+    private static function nativeOptionProbe(int $filter): string
+    {
+        return match ($filter) {
+            FILTER_VALIDATE_INT => '0',
+            FILTER_VALIDATE_BOOLEAN => 'true',
+            FILTER_VALIDATE_FLOAT => '0.0',
+            FILTER_VALIDATE_DOMAIN => 'example.com',
+            FILTER_VALIDATE_URL => 'https://example.com',
+            FILTER_VALIDATE_EMAIL => 'a@example.com',
+            FILTER_VALIDATE_IP => '127.0.0.1',
+            FILTER_VALIDATE_MAC => '00:00:00:00:00:00',
+            default => '',
+        };
     }
 
     private static function replaceValidationDefault(int $filter, array|int &$options): ?object
