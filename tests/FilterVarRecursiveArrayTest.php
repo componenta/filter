@@ -26,3 +26,16 @@ it('does not mistake shared array references for a cycle', function (): void {
         FILTER_REQUIRE_ARRAY,
     ))->accept($value))->toBeTrue();
 });
+
+it('continues scanning sibling arrays after leaving a referenced subtree', function (): void {
+    $valid = ['1'];
+    $value = [
+        'left' => &$valid,
+        'right' => ['not-an-int'],
+    ];
+
+    expect((new FilterVarFilter(
+        FILTER_VALIDATE_INT,
+        FILTER_REQUIRE_ARRAY,
+    ))->accept($value))->toBeFalse();
+});
