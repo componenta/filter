@@ -25,13 +25,20 @@ it('supports inclusive and exclusive numeric bounds', function (): void {
     $inclusive = new BetweenFilter(1, 3);
     $exclusive = new BetweenFilter(1, 3, inclusive: false);
 
-    expect($inclusive->accept(1))->toBeTrue()
+    expect($inclusive->accept(0))->toBeFalse()
+        ->and($inclusive->accept(1))->toBeTrue()
         ->and($inclusive->accept(2))->toBeTrue()
         ->and($inclusive->accept(3))->toBeTrue()
+        ->and($inclusive->accept(4))->toBeFalse()
         ->and($exclusive->accept(1))->toBeFalse()
         ->and($exclusive->accept(2))->toBeTrue()
         ->and($exclusive->accept(3))->toBeFalse()
         ->and($inclusive->accept('not numeric'))->toBeFalse();
+});
+
+it('filters an iterable through Between bounds supplied at construction', function (): void {
+    expect((new BetweenFilter(1, 2, iterable: [0, 1, 2, 3]))->toArray())
+        ->toBe([1, 2]);
 });
 
 it('passes both value and key to callbacks', function (): void {
