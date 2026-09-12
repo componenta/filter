@@ -187,6 +187,25 @@ final class NumericValueComparator
     private static function factorOut(string $value, int $factor, ?int $limit = null): array
     {
         $count = 0;
+        [$chunkPower, $chunkDivisor] = match ($factor) {
+            2 => [30, 1_073_741_824],
+            5 => [13, 1_220_703_125],
+            default => [1, $factor],
+        };
+
+        while ($chunkPower > 1
+            && $value !== '0'
+            && ($limit === null || $count + $chunkPower <= $limit)
+        ) {
+            [$quotient, $remainder] = self::divideUnsignedBySmall($value, $chunkDivisor);
+
+            if ($remainder !== 0) {
+                break;
+            }
+
+            $value = $quotient;
+            $count += $chunkPower;
+        }
 
         while ($value !== '0' && ($limit === null || $count < $limit)) {
             [$quotient, $remainder] = self::divideUnsignedBySmall($value, $factor);
