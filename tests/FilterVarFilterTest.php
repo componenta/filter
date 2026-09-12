@@ -60,8 +60,7 @@ it('does not reinterpret callback null results as validation failure', function 
 
 it('treats PHP 8.5 FILTER_THROW_ON_FAILURE as predicate rejection', function (): void {
     if (!defined('FILTER_THROW_ON_FAILURE')) {
-        expect(PHP_VERSION_ID)->toBeLessThan(80500);
-        return;
+        $this->markTestSkipped('FILTER_THROW_ON_FAILURE requires PHP 8.5+');
     }
 
     $throw = constant('FILTER_THROW_ON_FAILURE');
@@ -82,8 +81,7 @@ it('treats PHP 8.5 FILTER_THROW_ON_FAILURE as predicate rejection', function ():
 
 it('rejects incompatible PHP 8.5 filter failure flags', function (): void {
     if (!defined('FILTER_THROW_ON_FAILURE')) {
-        expect(PHP_VERSION_ID)->toBeLessThan(80500);
-        return;
+        $this->markTestSkipped('FILTER_THROW_ON_FAILURE requires PHP 8.5+');
     }
 
     $flags = FILTER_NULL_ON_FAILURE | constant('FILTER_THROW_ON_FAILURE');
@@ -136,7 +134,7 @@ it('validates every member and required shape in filter_var array mode', functio
         ->and($integers->accept('42'))->toBeFalse()
         ->and($booleans->accept(['true', false, '0']))->toBeTrue()
         ->and($booleans->accept(['true', 'not-a-boolean']))->toBeFalse()
-         ->and($booleans->accept('false'))->toBeFalse()
+        ->and($booleans->accept('false'))->toBeFalse()
         ->and($forcedInteger->accept('42'))->toBeTrue()
         ->and($forcedInteger->accept('bad'))->toBeFalse();
 });
