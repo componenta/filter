@@ -64,22 +64,25 @@ final class FilterVarFilter extends AbstractFilter
             return false;
         }
 
-        if ($defaultFailureSentinel !== null
-            && self::containsSentinel($result, $defaultFailureSentinel)
-        ) {
-            return false;
-        }
-
         $flags = self::flags($options);
         $arrayMode = ($flags & (FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY)) !== 0;
         $nullOnFailure = self::returnsNullOnFailure($this->filter, $flags);
 
-        if ($throwOnFailure) {
-            return $arrayMode ? is_array($result) : true;
+        if ($arrayMode) {
+            return is_array($result)
+                && !self::containsFailure(
+                    $result,
+                    $throwOnFailure ? null : $nullOnFailure,
+                    $defaultFailureSentinel,
+                );
         }
 
-        if ($arrayMode) {
-            return is_array($result) && !self::containsFailure($result, $nullOnFailure);
+        if ($defaultFailureSentinel !== null && $result === $defaultFailureSentinel) {
+            return false;
+        }
+
+        if ($throwOnFailure) {
+            return true;
         }
 
         return $nullOnFailure ? $result !== null : $result !== false;
@@ -149,25 +152,6 @@ final class FilterVarFilter extends AbstractFilter
         return $sentinel;
     }
 
-    private static function containsSentinel(mixed $value, object $sentinel): bool
-    {
-        if ($value === $sentinel) {
-            return true;
-        }
-
-        if (!is_array($value)) {
-            return false;
-        }
-
-        foreach ($value as $item) {
-            if (self::containsSentinel($item, $sentinel)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static function flags(array|int $options): int
     {
         return is_int($options) ? $options : ($options['flags'] ?? 0);
@@ -206,19 +190,58 @@ final class FilterVarFilter extends AbstractFilter
         ], true);
     }
 
-    private static function containsFailure(array $values, bool $nullOnFailure): bool
-    {
-        foreach ($values as $value) {
-            if (is_array($value)) {
-                if (self::containsFailure($value, $nullOnFailure)) {
-                    return true;
-                }
+    private static function containsFailure(
+        array $values,
+        ?bool $nullOnFailure,
+        ?object $sentinel = null,
+    ): bool {
+        $stack = [['values' => $values, 'reference' => null]];
+        $activeReferences = [];
 
+        while ($stack !== []) {
+            $entry = array_pop($stack);
+
+            if (!array_key_exists('values', $entry)) {
+                unset($activeReferences[$entry['reference']]);
                 continue;
             }
 
-            if ($nullOnFailure ? $value === null : $value === false) {
-                return true;
+            $referenceId = $entry['reference'];
+
+            if ($referenceId !== null) {
+                if (isset($activeReferences[$referenceId])) {
+                    return true;
+                }
+
+                $activeReferences[$referenceId] = true;
+                $stack[] = ['reference' => $referenceId];
+            }
+
+            $current = $entry['values'];
+            $keys = array_keys($current);
+
+            for ($i = count($keys) - 1; $i >= 0; $i--) {
+                $key = $keys[$i];
+                $value = $current[$key];
+
+                if (is_array($value)) {
+                    $reference = \ReflectionReference::fromArrayElement($current, $key);
+                    $stack[] = [
+                        'values' => $value,
+                        'reference' => $reference?->getId(),
+                    ];
+                    continue;
+                }
+
+                if ($sentinel !== null && $value === $sentinel) {
+                    return true;
+                }
+
+                if ($nullOnFailure !== null
+                    && ($nullOnFailure ? $value === null : $value === false)
+                ) {
+                    return true;
+                }
             }
         }
 
