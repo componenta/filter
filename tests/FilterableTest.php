@@ -104,7 +104,8 @@ it('removes only the requested predicate from evaluation', function (): void {
     expect($withAll->accept(-2))->toBeFalse()
         ->and($withoutPositive->accept(-2))->toBeTrue()
         ->and($withoutPositive->accept(-3))->toBeFalse()
-        ->and($withoutPositive->accept('2'))->toBeFalse();
+        ->and($withoutPositive->accept('2'))->toBeFalse()
+        ->and($withoutPositive->getFilters())->toBe([$integer, $even]);
 });
 
 it('rejects invalid predicates during construction', function (): void {
