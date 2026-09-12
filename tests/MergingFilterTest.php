@@ -74,5 +74,6 @@ it('adds and removes collection filters without mutating earlier merges', functi
 
     expect($base->toArray())->toBe([1])
         ->and($added->toArray())->toBe([1, 'one'])
-        ->and($removed->toArray())->toBe(['one']);
+        ->and($removed->toArray())->toBe(['one'])
+        ->and($removed->getFilters())->toBe([$strings]);
 });
