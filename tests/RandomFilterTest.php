@@ -35,6 +35,24 @@ dataset('invalid probabilities', [
     'negative infinity' => -INF,
 ]);
 
+it('uses one half as the default probability', function (): void {
+    $seed = 42;
+    $control = new Randomizer(new Mt19937($seed));
+    $filter = new RandomFilter(
+        randomizer: new Randomizer(new Mt19937($seed)),
+    );
+
+    $expected = [];
+    $actual = [];
+
+    foreach (range(1, 32) as $value) {
+        $expected[] = $control->nextFloat() < 0.5;
+        $actual[] = $filter->accept($value);
+    }
+
+    expect($actual)->toBe($expected);
+});
+
 it('has deterministic behavior at probability boundaries', function (): void {
     expect((new RandomFilter(0.0))->accept('value'))->toBeFalse()
         ->and((new RandomFilter(1.0))->accept('value'))->toBeTrue();
