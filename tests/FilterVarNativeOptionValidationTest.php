@@ -38,10 +38,14 @@ it('does not leak native option warnings or replace the caller error handler', f
     );
 
     try {
+        error_clear_last();
+
         expect(fn() => new FilterVarFilter(
             FILTER_VALIDATE_INT,
             ['options' => ['max_range' => new stdClass()]],
         ))->toThrow(InvalidArgumentException::class);
+
+        expect(error_get_last())->toBeNull();
 
         trigger_error('caller handler restored', E_USER_WARNING);
 

@@ -16,10 +16,13 @@ it('rejects unavailable stream wrappers without leaking warnings or replacing th
 
     try {
         $path = 'componenta-filter-missing-wrapper://path';
+        error_clear_last();
 
         expect((new FileExistsFilter())->accept($path))->toBeFalse()
             ->and((new DirectoryFilter())->accept($path))->toBeFalse()
             ->and($callerWarnings)->toBe([]);
+
+        expect(error_get_last())->toBeNull();
 
         trigger_error('caller handler restored', E_USER_WARNING);
 
