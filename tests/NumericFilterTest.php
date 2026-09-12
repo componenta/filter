@@ -13,6 +13,12 @@ it('accepts finite numeric values and numeric strings', function (): void {
         ->and($filter->accept('1.25e100'))->toBeTrue();
 });
 
+it('trims surrounding whitespace from numeric strings', function (): void {
+    $filter = new NumericFilter();
+
+    expect($filter->accept(" \t-1.25e3\n"))->toBeTrue();
+});
+
 it('rejects non-finite floating-point values', function (): void {
     $filter = new NumericFilter();
 
