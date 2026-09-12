@@ -45,6 +45,7 @@ final class FilterVarFilter extends AbstractFilter
     public function accept(mixed $value, string|int|null $key = null): bool
     {
         $options = $this->options;
+        $defaultFailureSentinel = self::replaceValidationDefault($this->filter, $options);
         $boolean = $this->filter === FILTER_VALIDATE_BOOLEAN;
         $throwOnFailure = self::hasThrowOnFailure(self::flags($options))
             && self::isValidationFilter($this->filter);
@@ -60,6 +61,12 @@ final class FilterVarFilter extends AbstractFilter
         try {
             $result = filter_var($value, $this->filter, $options);
         } catch (\Filter\FilterFailedException) {
+            return false;
+        }
+
+        if ($defaultFailureSentinel !== null
+            && self::containsSentinel($result, $defaultFailureSentinel)
+        ) {
             return false;
         }
 
@@ -124,6 +131,41 @@ final class FilterVarFilter extends AbstractFilter
                 throw new \InvalidArgumentException('FILTER_CALLBACK requires a callable option');
             }
         }
+    }
+
+    private static function replaceValidationDefault(int $filter, array|int &$options): ?object
+    {
+        if (!self::isValidationFilter($filter)
+            || !is_array($options)
+            || !is_array($options['options'] ?? null)
+            || !array_key_exists('default', $options['options'])
+        ) {
+            return null;
+        }
+
+        $sentinel = new \stdClass();
+        $options['options']['default'] = $sentinel;
+
+        return $sentinel;
+    }
+
+    private static function containsSentinel(mixed $value, object $sentinel): bool
+    {
+        if ($value === $sentinel) {
+            return true;
+        }
+
+        if (!is_array($value)) {
+            return false;
+        }
+
+        foreach ($value as $item) {
+            if (self::containsSentinel($item, $sentinel)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function flags(array|int $options): int

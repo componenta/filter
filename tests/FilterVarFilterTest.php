@@ -92,6 +92,31 @@ it('rejects incompatible PHP 8.5 filter failure flags', function (): void {
         ->toThrow(InvalidArgumentException::class);
 });
 
+it('does not let validation defaults mask failed validation', function (): void {
+    $integer = new FilterVarFilter(
+        FILTER_VALIDATE_INT,
+        ['options' => ['default' => 42]],
+    );
+    $boolean = new FilterVarFilter(
+        FILTER_VALIDATE_BOOLEAN,
+        ['options' => ['default' => true]],
+    );
+    $array = new FilterVarFilter(
+        FILTER_VALIDATE_INT,
+        [
+            'flags' => FILTER_REQUIRE_ARRAY,
+            'options' => ['default' => 42],
+        ],
+    );
+
+    expect($integer->accept('42'))->toBeTrue()
+        ->and($integer->accept('not-an-int'))->toBeFalse()
+        ->and($boolean->accept('false'))->toBeTrue()
+        ->and($boolean->accept('not-a-boolean'))->toBeFalse()
+        ->and($array->accept([1, '2', 3]))->toBeTrue()
+        ->and($array->accept([1, 'not-an-int', 3]))->toBeFalse();
+});
+
 it('validates every member and required shape in filter_var array mode', function (): void {
     $integers = new FilterVarFilter(
         FILTER_VALIDATE_INT,
@@ -111,7 +136,7 @@ it('validates every member and required shape in filter_var array mode', functio
         ->and($integers->accept('42'))->toBeFalse()
         ->and($booleans->accept(['true', false, '0']))->toBeTrue()
         ->and($booleans->accept(['true', 'not-a-boolean']))->toBeFalse()
-        ->and($booleans->accept('false'))->toBeFalse()
+         ->and($booleans->accept('false'))->toBeFalse()
         ->and($forcedInteger->accept('42'))->toBeTrue()
         ->and($forcedInteger->accept('bad'))->toBeFalse();
 });
