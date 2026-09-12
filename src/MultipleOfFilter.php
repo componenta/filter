@@ -75,6 +75,10 @@ final class MultipleOfFilter extends AbstractFilter
 
         $nearestInteger = round($quotient);
 
+        if ($nearestInteger == 0.0) {
+            return false;
+        }
+
         if (($nearestInteger * $divisor) === $value) {
             return true;
         }
