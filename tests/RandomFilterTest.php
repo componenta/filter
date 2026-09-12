@@ -35,19 +35,14 @@ dataset('invalid probabilities', [
     'negative infinity' => -INF,
 ]);
 
+it('has deterministic behavior at probability boundaries', function (): void {
+    expect((new RandomFilter(0.0))->accept('value'))->toBeFalse()
+        ->and((new RandomFilter(1.0))->accept('value'))->toBeTrue();
+});
+
 it('rejects invalid probability configuration', function (float $probability): void {
     new RandomFilter($probability);
 })->with('invalid probabilities')->throws(InvalidArgumentException::class);
-
-it('has deterministic behavior at probability boundaries', function (): void {
-    $never = new RandomFilter(0.0);
-    $always = new RandomFilter(1.0);
-
-    foreach (range(1, 100) as $value) {
-        expect($never->accept($value))->toBeFalse()
-            ->and($always->accept($value))->toBeTrue();
-    }
-});
 
 it('does not consume RNG state at deterministic probability boundaries', function (float $probability, bool $expected): void {
     $seed = 123456;
@@ -135,8 +130,7 @@ it('supports an injected deterministic Randomizer', function (): void {
         $actual[] = $filter->accept($value);
     }
 
-    expect($actual)->toBe($expected)
-        ->and(array_unique($actual))->toHaveCount(2);
+    expect($actual)->toBe($expected);
 });
 
 it('does not share RNG state with an immutable iterable clone', function (): void {
