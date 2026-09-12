@@ -88,7 +88,7 @@ final class RandomFilter extends AbstractFilter
             throw self::uncopyableEngine($engine);
         }
 
-        if ($reflection->isInternal()) {
+        if ($reflection->isInternal() || $reflection->hasMethod('__clone')) {
             return new Randomizer(clone $engine);
         }
 
