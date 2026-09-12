@@ -28,6 +28,15 @@ it('filters constructor iterables by property value', function (): void {
     ))->toArray())->toBe([$active]);
 });
 
+it('rejects non-object values before property inspection', function (): void {
+    $filter = new PropertyEqualsFilter('status', 'active');
+
+    expect($filter->accept(null))->toBeFalse()
+        ->and($filter->accept(0))->toBeFalse()
+        ->and($filter->accept('active'))->toBeFalse()
+        ->and($filter->accept([]))->toBeFalse();
+});
+
 it('rejects inaccessible properties instead of throwing', function (): void {
     $private = new class {
         private string $status = 'active';
