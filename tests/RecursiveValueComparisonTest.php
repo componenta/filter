@@ -11,6 +11,18 @@ use Componenta\Filter\NotEqualsFilter;
 use Componenta\Filter\PropertyEqualsFilter;
 use Componenta\Filter\UniqueFilter;
 
+it('preserves equality for the same recursive array value', function (): void {
+    $value = [];
+    $value['self'] = &$value;
+
+    expect((new EqualsFilter($value))->accept($value))->toBeTrue()
+        ->and((new EqualsFilter($value, strict: false))->accept($value))->toBeTrue()
+        ->and((new InArrayFilter([$value]))->accept($value))->toBeTrue()
+        ->and((new InArrayFilter([$value], strict: false))->accept($value))->toBeTrue()
+        ->and(iterator_to_array((new UniqueFilter([$value, $value]))->getIterator(), false))
+        ->toHaveCount(1);
+});
+
 it('treats distinct recursive arrays as non-equal without throwing', function (): void {
     $left = [];
     $left['self'] = &$left;
@@ -61,6 +73,8 @@ it('handles recursive array properties safely', function (): void {
     };
     $object->value = $left;
 
-    expect((new PropertyEqualsFilter('value', $right))->accept($object))->toBeFalse()
+    expect((new PropertyEqualsFilter('value', $left))->accept($object))->toBeTrue()
+        ->and((new PropertyEqualsFilter('value', $left, strict: false))->accept($object))->toBeTrue()
+        ->and((new PropertyEqualsFilter('value', $right))->accept($object))->toBeFalse()
         ->and((new PropertyEqualsFilter('value', $right, strict: false))->accept($object))->toBeFalse();
 });
