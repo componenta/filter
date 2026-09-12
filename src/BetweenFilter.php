@@ -57,11 +57,12 @@ final class BetweenFilter extends AbstractFilter
     public function accept(mixed $value, string|int|null $key = null): bool
     {
         $minComparison = NumericValueComparator::compare($value, $this->min);
-        $maxComparison = NumericValueComparator::compare($value, $this->max);
 
-        if ($minComparison === null || $maxComparison === null) {
+        if ($minComparison === null) {
             return false;
         }
+
+        $maxComparison = NumericValueComparator::compare($value, $this->max);
 
         if ($this->inclusive) {
             return $minComparison >= 0 && $maxComparison <= 0;
