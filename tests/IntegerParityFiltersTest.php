@@ -38,6 +38,18 @@ it('determines parity of exact decimal and scientific integer strings without fl
         ->and($odd->accept('1.5e0'))->toBeFalse();
 });
 
+it('handles signed and zero-padded scientific exponents exactly', function (): void {
+    $even = new EvenNumberFilter();
+    $odd = new OddNumberFilter();
+
+    expect($even->accept('.2e1'))->toBeTrue()
+        ->and($even->accept('2e+1'))->toBeTrue()
+        ->and($odd->accept('3e+0'))->toBeTrue()
+        ->and($odd->accept('3e-0'))->toBeTrue()
+        ->and($odd->accept('10e-0001'))->toBeTrue()
+        ->and($even->accept('1.23e10'))->toBeTrue();
+});
+
 it('handles decimal shifts and arbitrarily large exponents without overflow', function (): void {
     $even = new EvenNumberFilter();
     $odd = new OddNumberFilter();
