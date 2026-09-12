@@ -46,11 +46,13 @@ final class RangeFilter extends AbstractFilter
     public function accept(mixed $value, string|int|null $key = null): bool
     {
         $minComparison = NumericValueComparator::compare($value, $this->min);
+
+        if ($minComparison === null) {
+            return false;
+        }
+
         $maxComparison = NumericValueComparator::compare($value, $this->max);
 
-        return $minComparison !== null
-            && $maxComparison !== null
-            && $minComparison >= 0
-            && $maxComparison <= 0;
+        return $minComparison >= 0 && $maxComparison <= 0;
     }
 }
