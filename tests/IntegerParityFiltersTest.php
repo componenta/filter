@@ -15,6 +15,16 @@ it('determines parity of integer strings beyond the platform integer range', fun
         ->and($odd->accept('9223372036854775809'))->toBeTrue();
 });
 
+it('keeps native integer parity exact at platform boundaries', function (): void {
+    $even = new EvenNumberFilter();
+    $odd = new OddNumberFilter();
+
+    expect($odd->accept(PHP_INT_MAX))->toBeTrue()
+        ->and($even->accept(PHP_INT_MAX))->toBeFalse()
+        ->and($even->accept(PHP_INT_MAX - 1))->toBeTrue()
+        ->and($odd->accept(PHP_INT_MAX - 1))->toBeFalse();
+});
+
 it('determines parity of exact decimal and scientific integer strings without float rounding', function (): void {
     $even = new EvenNumberFilter();
     $odd = new OddNumberFilter();
