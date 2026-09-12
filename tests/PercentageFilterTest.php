@@ -44,6 +44,50 @@ it('does not consume a generic source at zero percent', function (): void {
         ->and($visited)->toBe(0);
 });
 
+it('does not over-consume countable lazy sources', function (): void {
+    $source = new class implements IteratorAggregate, Countable {
+        public int $visited = 0;
+
+        public function count(): int
+        {
+            return 4;
+        }
+
+        public function getIterator(): Traversable
+        {
+            foreach (['a', 'b', 'c', 'd'] as $value) {
+                $this->visited++;
+                yield $value;
+            }
+        }
+    };
+
+    expect((new PercentageFilter(50, $source))->toArray())->toBe(['a', 'b'])
+        ->and($source->visited)->toBe(2);
+});
+
+it('does not start a countable lazy source when the rounded allowance is zero', function (): void {
+    $source = new class implements IteratorAggregate, Countable {
+        public int $visited = 0;
+
+        public function count(): int
+        {
+            return 4;
+        }
+
+        public function getIterator(): Traversable
+        {
+            foreach (['a', 'b', 'c', 'd'] as $value) {
+                $this->visited++;
+                yield $value;
+            }
+        }
+    };
+
+    expect((new PercentageFilter(1, $source))->toArray())->toBe([])
+        ->and($source->visited)->toBe(0);
+});
+
 it('streams a generic source at one hundred percent', function (): void {
     $visited = 0;
     $source = (static function () use (&$visited): Generator {

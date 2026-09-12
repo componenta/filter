@@ -47,14 +47,19 @@ final class PercentageFilter extends AbstractCollectionFilter
 
         if (is_array($this->iterable) || $this->iterable instanceof \Countable) {
             $allowedCount = (int) floor(count($this->iterable) * ($this->percentage / 100));
-            $index = 0;
+
+            if ($allowedCount === 0) {
+                return;
+            }
+
+            $yielded = 0;
 
             foreach ($this->iterable as $key => $value) {
-                if ($index++ >= $allowedCount) {
+                yield $key => $value;
+
+                if (++$yielded >= $allowedCount) {
                     break;
                 }
-
-                yield $key => $value;
             }
 
             return;
