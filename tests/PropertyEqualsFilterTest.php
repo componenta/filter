@@ -13,6 +13,15 @@ it('compares initialized public properties', function (): void {
         ->and((new PropertyEqualsFilter('status', 'disabled'))->accept($value))->toBeFalse();
 });
 
+it('compares property values strictly by default', function (): void {
+    $value = new class {
+        public string $id = '1';
+    };
+
+    expect((new PropertyEqualsFilter('id', 1))->accept($value))->toBeFalse()
+        ->and((new PropertyEqualsFilter('id', 1, strict: false))->accept($value))->toBeTrue();
+});
+
 it('filters constructor iterables by property value', function (): void {
     $active = new class {
         public string $status = 'active';
