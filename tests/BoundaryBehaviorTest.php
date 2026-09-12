@@ -42,8 +42,10 @@ final class BoundaryBehaviorFixture
 it('treats empty prefixes and suffixes as matching every string value', function (): void {
     expect((new StartsWithFilter(''))->accept(''))->toBeTrue()
         ->and((new StartsWithFilter(''))->accept('value'))->toBeTrue()
+        ->and((new StartsWithFilter('', caseSensitive: false))->accept('value'))->toBeTrue()
         ->and((new EndsWithFilter(''))->accept(''))->toBeTrue()
-        ->and((new EndsWithFilter(''))->accept('value'))->toBeTrue();
+        ->and((new EndsWithFilter(''))->accept('value'))->toBeTrue()
+        ->and((new EndsWithFilter('', caseSensitive: false))->accept('value'))->toBeTrue();
 });
 
 it('normalizes file extensions case-insensitively on both sides', function (): void {
