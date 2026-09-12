@@ -124,6 +124,18 @@ it('handles float values exactly before attempting a finite float fallback', fun
         ->and((new MultipleOfFilter('3e-10000'))->accept(1.0))->toBeFalse();
 });
 
+it('rejects invalid tested values without warnings or exceptions', function (): void {
+    $filter = new MultipleOfFilter(3);
+
+    expect($filter->accept(null))->toBeFalse()
+        ->and($filter->accept(true))->toBeFalse()
+        ->and($filter->accept([]))->toBeFalse()
+        ->and($filter->accept(new stdClass()))->toBeFalse()
+        ->and($filter->accept('not-a-number'))->toBeFalse()
+        ->and($filter->accept(NAN))->toBeFalse()
+        ->and($filter->accept(INF))->toBeFalse();
+});
+
 dataset('invalid divisors', [
     'zero' => 0.0,
     'negative zero' => -0.0,
