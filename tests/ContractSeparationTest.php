@@ -57,6 +57,13 @@ it('accepts a single predicate directly in composite constructors', function ():
         ->and((new OneOfFilter($predicate))->accept('1'))->toBeFalse();
 });
 
+it('rejects non-predicates in concrete composite constructors', function (): void {
+    expect(fn() => new ChainableFilter(['not-a-predicate']))
+        ->toThrow(InvalidArgumentException::class)
+        ->and(fn() => new OneOfFilter(['not-a-predicate']))
+        ->toThrow(InvalidArgumentException::class);
+});
+
 it('merges arbitrary collection filters without inventing predicate semantics', function (): void {
     $filter = new MergingFilter(
         new IntFilter([1, 'two']),
