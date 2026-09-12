@@ -13,6 +13,16 @@ final class FileExistsFilter extends AbstractFilter
     {
         $path = StringValue::from($value);
 
-        return $path !== null && file_exists($path);
+        if ($path === null) {
+            return false;
+        }
+
+        set_error_handler(static fn(): bool => true, E_WARNING);
+
+        try {
+            return file_exists($path);
+        } finally {
+            restore_error_handler();
+        }
     }
 }
