@@ -250,10 +250,19 @@ final class FilterVarFilter extends AbstractFilter
 
     private static function isValidRegexp(string $regexp): bool
     {
-        set_error_handler(static fn(): bool => true, E_WARNING);
+        $compileWarning = false;
+        set_error_handler(
+            static function () use (&$compileWarning): bool {
+                $compileWarning = true;
+                return true;
+            },
+            E_WARNING,
+        );
 
         try {
-            return preg_match($regexp, '') !== false;
+            preg_match($regexp, '');
+
+            return !$compileWarning;
         } finally {
             restore_error_handler();
         }

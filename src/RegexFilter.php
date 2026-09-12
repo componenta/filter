@@ -39,10 +39,19 @@ final class RegexFilter extends AbstractFilter
 
     private static function isValidPattern(string $pattern): bool
     {
-        set_error_handler(static fn(): bool => true, E_WARNING);
+        $compileWarning = false;
+        set_error_handler(
+            static function () use (&$compileWarning): bool {
+                $compileWarning = true;
+                return true;
+            },
+            E_WARNING,
+        );
 
         try {
-            return preg_match($pattern, '') !== false;
+            preg_match($pattern, '');
+
+            return !$compileWarning;
         } finally {
             restore_error_handler();
         }
