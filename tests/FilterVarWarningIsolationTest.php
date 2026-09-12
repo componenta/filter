@@ -2,48 +2,36 @@
 
 declare(strict_types=1);
 
-it('rejects invalid FILTER_VALIDATE_REGEXP configuration without leaking warnings', function (): void {
-    $autoload = dirname(__DIR__) . '/vendor/autoload.php';
-    $code = sprintf(<<<'PHP'
-require %s;
-
 use Componenta\Filter\FilterVarFilter;
 
-error_clear_last();
+it('rejects invalid FILTER_VALIDATE_REGEXP configuration without leaking warnings or replacing the caller error handler', function (): void {
+    $warnings = [];
+    set_error_handler(
+        static function (int $severity, string $message) use (&$warnings): bool {
+            $warnings[] = [$severity, $message];
 
-try {
-    new FilterVarFilter(
-        FILTER_VALIDATE_REGEXP,
-        ['options' => ['regexp' => '/[']],
-    );
-    $exception = null;
-} catch (Throwable $throwable) {
-    $exception = $throwable::class;
-}
-
-echo json_encode([$exception, error_get_last()], JSON_THROW_ON_ERROR);
-PHP, var_export($autoload, true));
-
-    $pipes = [];
-    $process = proc_open(
-        [PHP_BINARY, '-d', 'display_errors=1', '-r', $code],
-        [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-        $pipes,
+            return true;
+        },
+        E_WARNING,
     );
 
-    expect($process)->not->toBeFalse();
+    try {
+        error_clear_last();
 
-    $output = stream_get_contents($pipes[1]);
-    $error = stream_get_contents($pipes[2]);
-    fclose($pipes[1]);
-    fclose($pipes[2]);
-    $exitCode = proc_close($process);
+        expect(fn() => new FilterVarFilter(
+            FILTER_VALIDATE_REGEXP,
+            ['options' => ['regexp' => '/[']],
+        ))
+            ->toThrow(InvalidArgumentException::class)
+            ->and(error_get_last())->toBeNull()
+            ->and($warnings)->toBe([]);
 
-    expect($exitCode)->toBe(0, $error)
-        ->and($error)->toBe('');
+        preg_match('/[', '');
 
-    [$exception, $lastError] = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
-
-    expect($exception)->toBe(InvalidArgumentException::class)
-        ->and($lastError)->toBeNull();
+        expect($warnings)->toHaveCount(1)
+            ->and($warnings[0][0])->toBe(E_WARNING);
+    } finally {
+        restore_error_handler();
+        error_clear_last();
+    }
 });
