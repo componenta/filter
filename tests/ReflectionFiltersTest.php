@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Componenta\Filter\ReflectionConcreteClassFilter;
 use Componenta\Filter\ReflectionImplementingFilter;
 use Componenta\Filter\ReflectionSubclassFilter;
 
@@ -23,6 +24,32 @@ it('matches valid reflection interface and subclass constraints', function (): v
     expect((new ReflectionImplementingFilter(ReflectionFilterContractFixture::class))->accept($reflection))->toBeTrue()
         ->and((new ReflectionSubclassFilter(ReflectionFilterParentFixture::class))->accept($reflection))->toBeTrue()
         ->and((new ReflectionSubclassFilter(ReflectionFilterContractFixture::class))->accept($reflection))->toBeTrue();
+});
+
+it('rejects non-reflection values in reflection class predicates', function (): void {
+    $value = new stdClass();
+
+    expect((new ReflectionConcreteClassFilter([ReflectionFilterChildFixture::class]))->accept($value))->toBeFalse()
+        ->and((new ReflectionImplementingFilter(ReflectionFilterContractFixture::class))->accept($value))->toBeFalse()
+        ->and((new ReflectionSubclassFilter(ReflectionFilterParentFixture::class))->accept($value))->toBeFalse();
+});
+
+it('filters constructor iterables through reflection predicates', function (): void {
+    $reflection = new ReflectionClass(ReflectionFilterChildFixture::class);
+    $other = new ReflectionClass(stdClass::class);
+
+    expect((new ReflectionConcreteClassFilter(
+        [ReflectionFilterChildFixture::class],
+        [$reflection, $other],
+    ))->toArray())->toBe([$reflection])
+        ->and((new ReflectionImplementingFilter(
+            ReflectionFilterContractFixture::class,
+            [$reflection, $other],
+        ))->toArray())->toBe([$reflection])
+        ->and((new ReflectionSubclassFilter(
+            ReflectionFilterParentFixture::class,
+            [$reflection, $other],
+        ))->toArray())->toBe([$reflection]);
 });
 
 it('rejects an unknown interface when configuring an implementing filter', function (): void {
