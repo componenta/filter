@@ -16,6 +16,15 @@ it('initializes directly from a single predicate instance', function (): void {
         ->and($filterable->accept('rejected'))->toBeFalse();
 });
 
+it('checks filter membership by predicate identity', function (): void {
+    $filter = new CallbackFilter(static fn(mixed $value): bool => is_int($value));
+    $equivalentButDistinct = new CallbackFilter(static fn(mixed $value): bool => is_int($value));
+    $filterable = new FilterableFixture($filter);
+
+    expect($filterable->hasFilter($filter))->toBeTrue()
+        ->and($filterable->hasFilter($equivalentButDistinct))->toBeFalse();
+});
+
 it('accepts pure predicates without iterable filter behavior', function (): void {
     $predicate = new class implements PredicateInterface {
         public function accept(mixed $value, string|int|null $key = null): bool
