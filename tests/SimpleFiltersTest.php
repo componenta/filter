@@ -75,7 +75,7 @@ final class SimpleFilterAttributedFixture
     public string $status = 'active';
 }
 
-it('characterizes primitive type filters', function (): void {
+it('enforces primitive type contracts', function (): void {
     $stringable = new class implements Stringable {
         public function __toString(): string
         {
@@ -105,14 +105,14 @@ it('characterizes primitive type filters', function (): void {
         ->and((new NonNullFilter())->accept(null))->toBeFalse();
 });
 
-it('characterizes PHP empty semantics explicitly', function (): void {
+it('follows PHP empty semantics explicitly', function (): void {
     expect((new EmptyFilter())->accept('0'))->toBeTrue()
         ->and((new EmptyFilter())->accept('value'))->toBeFalse()
         ->and((new NotEmptyFilter())->accept('0'))->toBeFalse()
         ->and((new NotEmptyFilter())->accept('value'))->toBeTrue();
 });
 
-it('characterizes strict and loose equality filters', function (): void {
+it('distinguishes strict and loose equality', function (): void {
     expect((new EqualsFilter(1))->accept(1))->toBeTrue()
         ->and((new EqualsFilter(1))->accept('1'))->toBeFalse()
         ->and((new EqualsFilter(1, strict: false))->accept('1'))->toBeTrue()
@@ -124,14 +124,14 @@ it('characterizes strict and loose equality filters', function (): void {
         ->and((new ExcludeFilter([1, 2]))->accept(1))->toBeFalse();
 });
 
-it('characterizes key filters with strict key comparison', function (): void {
+it('compares filter keys strictly', function (): void {
     expect((new KeyInFilter(['1']))->accept('value', '1'))->toBeTrue()
         ->and((new KeyInFilter(['1']))->accept('value', 1))->toBeFalse()
         ->and((new KeyExcludeFilter(['blocked']))->accept('value', 'blocked'))->toBeFalse()
         ->and((new KeyExcludeFilter(['blocked']))->accept('value', 'allowed'))->toBeTrue();
 });
 
-it('characterizes class and instanceof filters', function (): void {
+it('matches class, subclass, and interface relationships', function (): void {
     $child = new SimpleFilterChildFixture();
 
     expect((new InstanceofFilter(SimpleFilterParentFixture::class))->accept($child))->toBeTrue()
@@ -148,7 +148,7 @@ it('characterizes class and instanceof filters', function (): void {
         ->and((new AnyClassFilter([SimpleFilterChildFixture::class]))->accept('not-an-object'))->toBeFalse();
 });
 
-it('characterizes reflection and property existence filters', function (): void {
+it('matches reflection attributes and property existence', function (): void {
     $reflection = new ReflectionClass(SimpleFilterAttributedFixture::class);
     $object = new SimpleFilterAttributedFixture();
 
@@ -158,7 +158,7 @@ it('characterizes reflection and property existence filters', function (): void 
         ->and((new PropertyExistsFilter('missing'))->accept($object))->toBeFalse();
 });
 
-it('characterizes string predicates and case sensitivity', function (): void {
+it('applies string predicates with their configured case sensitivity', function (): void {
     expect((new AlphaNumericFilter())->accept('abc123'))->toBeTrue()
         ->and((new AlphaNumericFilter())->accept('abc-123'))->toBeFalse()
         ->and((new ContainsFilter('WORLD', caseSensitive: false))->accept('hello world'))->toBeTrue()
@@ -171,14 +171,14 @@ it('characterizes string predicates and case sensitivity', function (): void {
         ->and((new LengthRangeFilter(2, 4))->accept('abc'))->toBeTrue();
 });
 
-it('characterizes filesystem filters against real test paths', function (): void {
+it('matches filesystem filters against real test paths', function (): void {
     expect((new FileExistsFilter())->accept(__FILE__))->toBeTrue()
         ->and((new DirectoryFilter())->accept(__DIR__))->toBeTrue()
         ->and((new FileExtensionFilter(['php']))->accept(__FILE__))->toBeTrue()
         ->and((new FileExtensionFilter(['PHP'], caseSensitive: true))->accept(__FILE__))->toBeFalse();
 });
 
-it('characterizes negation and chain composition', function (): void {
+it('composes negation and AND predicates', function (): void {
     $chain = ChainableFilter::from(
         [1, '2', 3],
         new IntFilter(),
