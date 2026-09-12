@@ -18,7 +18,7 @@ final class KeyList
                 throw new \InvalidArgumentException(sprintf(
                     '%s[%s] must be string, int, or null; %s given',
                     $argument,
-                    (string) $index,
+                    $index,
                     get_debug_type($value),
                 ));
             }
