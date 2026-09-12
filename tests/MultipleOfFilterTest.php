@@ -14,6 +14,14 @@ it('accepts decimal multiples despite floating-point representation noise', func
         ->and($filter->accept(0.35))->toBeFalse();
 });
 
+it('uses bounded tolerance when a float is one ulp beyond the reconstructed multiple', function (): void {
+    $filter = new MultipleOfFilter(0.1);
+
+    expect($filter->accept(0.3000000000000001))->toBeTrue()
+        ->and($filter->accept(-0.3000000000000001))->toBeTrue()
+        ->and($filter->accept(0.30000000000001))->toBeFalse();
+});
+
 it('uses float tolerance only for an actual float value', function (): void {
     expect((new MultipleOfFilter('0.1'))->accept(0.30000000000000004))->toBeTrue()
         ->and((new MultipleOfFilter(0.1))->accept('0.30000000000000004'))->toBeFalse()
@@ -44,6 +52,13 @@ it('does not mistake float quotient underflow for an integer multiple', function
     expect($filter->accept(1e-308))->toBeFalse()
         ->and($filter->accept(-1e-308))->toBeFalse()
         ->and((new MultipleOfFilter(1.0))->accept('1e-10000'))->toBeFalse();
+});
+
+it('does not mistake nonzero quotient underflow against an enormous exact divisor for a multiple', function (): void {
+    $filter = new MultipleOfFilter('1e10000');
+
+    expect($filter->accept(1.0))->toBeFalse()
+        ->and($filter->accept(-1.0))->toBeFalse();
 });
 
 it('checks integer and numeric-string multiples without integer or float overflow', function (): void {
