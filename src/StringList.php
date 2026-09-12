@@ -18,7 +18,7 @@ final class StringList
                 throw new \InvalidArgumentException(sprintf(
                     '%s[%s] must be a string, %s given',
                     $argument,
-                    (string) $key,
+                    $key,
                     get_debug_type($value),
                 ));
             }
