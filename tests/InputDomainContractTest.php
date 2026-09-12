@@ -13,3 +13,15 @@ it('rejects values outside predicate input domains', function (): void {
         ->and((new RangeFilter(1, 3))->accept('not numeric'))->toBeFalse()
         ->and((new PropertyExistsFilter('status'))->accept('not an object'))->toBeFalse();
 });
+
+it('does not reinterpret class strings as object property values', function (): void {
+    $filter = new PropertyExistsFilter('status');
+
+    expect(property_exists(InputDomainPropertyFixture::class, 'status'))->toBeTrue()
+        ->and($filter->accept(InputDomainPropertyFixture::class))->toBeFalse();
+});
+
+final class InputDomainPropertyFixture
+{
+    public string $status = 'active';
+}
