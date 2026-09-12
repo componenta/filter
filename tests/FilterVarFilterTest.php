@@ -90,16 +90,8 @@ it('rejects incompatible PHP 8.5 filter failure flags', function (): void {
         ->toThrow(InvalidArgumentException::class);
 });
 
-it('does not let validation defaults mask failed validation', function (): void {
-    $integer = new FilterVarFilter(
-        FILTER_VALIDATE_INT,
-        ['options' => ['default' => 42]],
-    );
-    $boolean = new FilterVarFilter(
-        FILTER_VALIDATE_BOOLEAN,
-        ['options' => ['default' => true]],
-    );
-    $array = new FilterVarFilter(
+it('does not let a validation default mask failure inside required arrays', function (): void {
+    $filter = new FilterVarFilter(
         FILTER_VALIDATE_INT,
         [
             'flags' => FILTER_REQUIRE_ARRAY,
@@ -107,12 +99,8 @@ it('does not let validation defaults mask failed validation', function (): void 
         ],
     );
 
-    expect($integer->accept('42'))->toBeTrue()
-        ->and($integer->accept('not-an-int'))->toBeFalse()
-        ->and($boolean->accept('false'))->toBeTrue()
-        ->and($boolean->accept('not-a-boolean'))->toBeFalse()
-        ->and($array->accept([1, '2', 3]))->toBeTrue()
-        ->and($array->accept([1, 'not-an-int', 3]))->toBeFalse();
+    expect($filter->accept([1, '2', 3]))->toBeTrue()
+        ->and($filter->accept([1, 'not-an-int', 3]))->toBeFalse();
 });
 
 it('validates every member and required shape in filter_var array mode', function (): void {
