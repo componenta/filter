@@ -51,3 +51,22 @@ it('continues to accept integral numeric forms and reject fractions', function (
         ->and($even->accept(2.5))->toBeFalse()
         ->and($odd->accept(3.5))->toBeFalse();
 });
+
+it('determines parity of integral floats without coercion loss', function (): void {
+    $even = new EvenNumberFilter();
+    $odd = new OddNumberFilter();
+
+    expect($even->accept(2.0))->toBeTrue()
+        ->and($odd->accept(2.0))->toBeFalse()
+        ->and($even->accept(-4.0))->toBeTrue()
+        ->and($odd->accept(-3.0))->toBeTrue()
+        ->and($even->accept(-3.0))->toBeFalse();
+});
+
+it('allows surrounding whitespace in numeric string parity inputs', function (): void {
+    $even = new EvenNumberFilter();
+    $odd = new OddNumberFilter();
+
+    expect($even->accept(" \t+2.0\n"))->toBeTrue()
+        ->and($odd->accept("\r -3 \t"))->toBeTrue();
+});
