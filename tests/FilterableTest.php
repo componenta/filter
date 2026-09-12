@@ -30,7 +30,7 @@ it('accepts pure predicates without iterable filter behavior', function (): void
         ->and($filterable->accept(41))->toBeFalse();
 });
 
-it('returns new instances when predicates are added or removed', function (): void {
+it('adds and removes predicates without mutating earlier instances', function (): void {
     $filter = new CallbackFilter(static fn(mixed $value): bool => is_int($value));
     $filterable = new FilterableFixture();
 
@@ -39,31 +39,22 @@ it('returns new instances when predicates are added or removed', function (): vo
 
     expect($withFilter)->not->toBe($filterable)
         ->and($withoutFilter)->not->toBe($withFilter)
-        ->and($filterable->hasFilter($filter))->toBeFalse()
-        ->and($withFilter->hasFilter($filter))->toBeTrue()
-        ->and($withoutFilter->hasFilter($filter))->toBeFalse();
+        ->and($filterable->accept('not-an-int'))->toBeTrue()
+        ->and($withFilter->accept('not-an-int'))->toBeFalse()
+        ->and($withoutFilter->accept('not-an-int'))->toBeTrue();
 });
 
-it('honors prepend order when evaluating predicates', function (): void {
-    $calls = [];
-
-    $first = new CallbackFilter(function () use (&$calls): bool {
-        $calls[] = 'first';
-
-        return true;
+it('evaluates a prepended predicate first and short-circuits on rejection', function (): void {
+    $mustNotRun = new CallbackFilter(static function (): bool {
+        throw new RuntimeException('later predicate must be short-circuited');
     });
-    $prepended = new CallbackFilter(function () use (&$calls): bool {
-        $calls[] = 'prepended';
+    $reject = new CallbackFilter(static fn(): bool => false);
 
-        return true;
-    });
+    $filterable = (new FilterableFixture())
+        ->withFilter($mustNotRun)
+        ->withFilter($reject, prepend: true);
 
-    (new FilterableFixture())
-        ->withFilter($first)
-        ->withFilter($prepended, prepend: true)
-        ->accept('value');
-
-    expect($calls)->toBe(['prepended', 'first']);
+    expect($filterable->accept('value'))->toBeFalse();
 });
 
 it('requires every predicate to accept a value', function (): void {
@@ -76,15 +67,18 @@ it('requires every predicate to accept a value', function (): void {
         ->and($filterable->accept(15))->toBeTrue();
 });
 
-it('reindexes the public predicate list after removing a middle predicate', function (): void {
-    $first = new CallbackFilter(static fn(): bool => true);
-    $middle = new CallbackFilter(static fn(): bool => true);
-    $last = new CallbackFilter(static fn(): bool => true);
+it('removes only the requested predicate from evaluation', function (): void {
+    $integer = new CallbackFilter(static fn(mixed $value): bool => is_int($value));
+    $positive = new CallbackFilter(static fn(int $value): bool => $value > 0);
+    $even = new CallbackFilter(static fn(int $value): bool => $value % 2 === 0);
 
-    $filterable = (new FilterableFixture([$first, $middle, $last]))
-        ->withoutFilter($middle);
+    $withAll = new FilterableFixture([$integer, $positive, $even]);
+    $withoutPositive = $withAll->withoutFilter($positive);
 
-    expect($filterable->getFilters())->toBe([$first, $last]);
+    expect($withAll->accept(-2))->toBeFalse()
+        ->and($withoutPositive->accept(-2))->toBeTrue()
+        ->and($withoutPositive->accept(-3))->toBeFalse()
+        ->and($withoutPositive->accept('2'))->toBeFalse();
 });
 
 it('rejects invalid predicates during construction', function (): void {
