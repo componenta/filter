@@ -73,8 +73,8 @@ final class NumericValueComparator
 
         [$divisorTwos, $coprimeDivisor] = self::factorOut($divisorDigits, 2);
         [$divisorFives, $coprimeDivisor] = self::factorOut($coprimeDivisor, 5);
-        [$valueTwos] = self::factorOut($valueDigits, 2);
-        [$valueFives] = self::factorOut($valueDigits, 5);
+        [$valueTwos] = self::factorOut($valueDigits, 2, $divisorTwos);
+        [$valueFives] = self::factorOut($valueDigits, 5, $divisorFives);
 
         if (!self::isUnsignedDivisible($valueDigits, $coprimeDivisor)) {
             return false;
@@ -184,11 +184,11 @@ final class NumericValueComparator
     /**
      * @return array{int<0, max>, string}
      */
-    private static function factorOut(string $value, int $factor): array
+    private static function factorOut(string $value, int $factor, ?int $limit = null): array
     {
         $count = 0;
 
-        while ($value !== '0') {
+        while ($value !== '0' && ($limit === null || $count < $limit)) {
             [$quotient, $remainder] = self::divideUnsignedBySmall($value, $factor);
 
             if ($remainder !== 0) {
