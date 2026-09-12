@@ -22,6 +22,14 @@ it('uses floor semantics for fractional allowed counts', function (): void {
     expect((new PercentageFilter(50, $generator))->toArray())->toBe(['a']);
 });
 
+it('uses the same floor calculation for generic iterables near one hundred percent', function (): void {
+    $source = (static function (): Generator {
+        yield from range(1, 100);
+    })();
+
+    expect((new PercentageFilter(99, $source))->toArray())->toBe(range(1, 99));
+});
+
 it('handles exact percentage boundaries without off-by-one behavior', function (): void {
     $hundred = range(1, 100);
 
