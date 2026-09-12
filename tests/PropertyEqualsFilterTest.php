@@ -13,6 +13,21 @@ it('compares initialized public properties', function (): void {
         ->and((new PropertyEqualsFilter('status', 'disabled'))->accept($value))->toBeFalse();
 });
 
+it('filters constructor iterables by property value', function (): void {
+    $active = new class {
+        public string $status = 'active';
+    };
+    $disabled = new class {
+        public string $status = 'disabled';
+    };
+
+    expect((new PropertyEqualsFilter(
+        'status',
+        'active',
+        iterable: [$active, $disabled, new stdClass()],
+    ))->toArray())->toBe([$active]);
+});
+
 it('rejects inaccessible properties instead of throwing', function (): void {
     $private = new class {
         private string $status = 'active';
