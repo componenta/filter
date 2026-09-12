@@ -29,6 +29,13 @@ it('scales float tolerance with quotient magnitude', function (): void {
         ->and($filter->accept(-1.0000000000000004))->toBeTrue();
 });
 
+it('does not widen the float tolerance beyond its epsilon budget', function (): void {
+    $filter = new MultipleOfFilter(1.0);
+
+    expect($filter->accept(1.000000000000002))->toBeFalse()
+        ->and($filter->accept(-1.000000000000002))->toBeFalse();
+});
+
 it('includes a float exactly on the tolerance boundary', function (): void {
     $filter = new MultipleOfFilter(1.0);
 
