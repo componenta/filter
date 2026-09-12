@@ -23,6 +23,14 @@ it('preserves exact timestamps across an ambiguous DST hour', function (): void 
     }
 });
 
+it('includes a date when both range endpoints are equal', function (): void {
+    $filter = new DateRangeFilter('2026-01-01', '2026-01-01');
+
+    expect($filter->accept('2026-01-01'))->toBeTrue()
+        ->and($filter->accept('2025-12-31'))->toBeFalse()
+        ->and($filter->accept('2026-01-02'))->toBeFalse();
+});
+
 it('compares fractional seconds exactly', function (): void {
     $filter = new DateRangeFilter(
         '2026-06-01T12:00:00.200000+00:00',
@@ -203,6 +211,13 @@ it('rejects numeric UTC offsets outside RFC 3339 bounds', function (): void {
         '2026-01-01T01:00:00+24:00',
     ))->toThrow(InvalidArgumentException::class);
 });
+
+it('rejects malformed date bounds', function (string $min, string $max): void {
+    new DateRangeFilter($min, $max);
+})->with([
+    'malformed minimum' => ['not-a-date', '2026-12-31'],
+    'malformed maximum' => ['2026-01-01', 'not-a-date'],
+])->throws(InvalidArgumentException::class);
 
 it('rejects relative and impossible date strings', function (string $date): void {
     new DateRangeFilter($date, '2026-12-31');
