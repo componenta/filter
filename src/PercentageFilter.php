@@ -71,7 +71,7 @@ final class PercentageFilter extends AbstractCollectionFilter
             $items[] = [$key, $value];
         }
 
-        $allowedCount = (int) floor(count($items) * ($this->percentage / 100));
+        $allowedCount = floor(count($items) * ($this->percentage / 100));
 
         for ($i = 0; $i < $allowedCount; $i++) {
             [$key, $value] = $items[$i];
