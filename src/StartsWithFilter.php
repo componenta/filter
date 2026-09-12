@@ -45,16 +45,10 @@ final class StartsWithFilter extends AbstractFilter
             return false;
         }
 
-        $prefixLen = strlen($this->prefix);
-
-        if ($prefixLen === 0) {
-            return true;
-        }
-
         if ($this->caseSensitive) {
             return str_starts_with($stringValue, $this->prefix);
         }
 
-        return strncasecmp($stringValue, $this->prefix, $prefixLen) === 0;
+        return strncasecmp($stringValue, $this->prefix, strlen($this->prefix)) === 0;
     }
 }
