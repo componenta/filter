@@ -15,7 +15,7 @@ namespace Componenta\Filter;
  */
 final class DateRangeFilter extends AbstractFilter
 {
-    private const string ABSOLUTE_DATE_PATTERN = '/^(?<date>\d{4}-\d{2}-\d{2})(?:(?:[ T])(?<time>\d{2}:\d{2}:\d{2})(?<fraction>\.\d{1,6})?(?<offset>Z|[+-]\d{2}:\d{2})?)?$/D';
+    private const string ABSOLUTE_DATE_PATTERN = '/^(?<date>\d{4}-\d{2}-\d{2})(?:(?:[ T])(?<time>\d{2}:\d{2}:\d{2})(?<fraction>\.\d{1,6})?(?<offset>Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?)?$/D';
 
     private readonly \DateTimeImmutable $minDate;
     private readonly \DateTimeImmutable $maxDate;

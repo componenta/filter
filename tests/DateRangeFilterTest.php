@@ -189,6 +189,22 @@ it('accepts DateTimeInterface values without reparsing through strings', functio
         ->and($filter->accept(new DateTimeImmutable('2026-06-01T13:00:00+00:00')))->toBeFalse();
 });
 
+it('rejects numeric UTC offsets outside RFC 3339 bounds', function (): void {
+    $valid = new DateRangeFilter(
+        '2026-01-01T00:00:00+23:59',
+        '2026-01-01T01:00:00+23:59',
+    );
+
+    expect($valid->accept('2026-01-01T00:30:00+23:59'))->toBeTrue()
+        ->and($valid->accept('2026-01-01T00:30:00+24:00'))->toBeFalse()
+        ->and($valid->accept('2026-01-01T00:30:00-24:00'))->toBeFalse();
+
+    expect(fn() => new DateRangeFilter(
+        '2026-01-01T00:00:00+24:00',
+        '2026-01-01T01:00:00+24:00',
+    ))->toThrow(InvalidArgumentException::class);
+});
+
 it('rejects relative and impossible date strings', function (string $date): void {
     new DateRangeFilter($date, '2026-12-31');
 })->with([
