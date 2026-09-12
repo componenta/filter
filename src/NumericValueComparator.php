@@ -252,18 +252,175 @@ final class NumericValueComparator
             return false;
         }
 
-        $remainder = '0';
+        [$base, $digitsPerLimb] = PHP_INT_SIZE >= 8
+            ? [1_000_000_000, 9]
+            : [10_000, 4];
+        $dividend = self::decimalToLimbs($numerator, $digitsPerLimb);
+        $divisor = self::decimalToLimbs($denominator, $digitsPerLimb);
+        $divisorLength = count($divisor);
 
-        for ($i = 0, $length = strlen($numerator); $i < $length; $i++) {
-            $remainder = ltrim(($remainder === '0' ? '' : $remainder) . $numerator[$i], '0');
-            $remainder = $remainder === '' ? '0' : $remainder;
+        if ($divisorLength === 1) {
+            $remainder = 0;
 
-            while (self::compareUnsigned($remainder, $denominator) >= 0) {
-                $remainder = self::subtractUnsigned($remainder, $denominator);
+            foreach ($dividend as $limb) {
+                $remainder = (($remainder * $base) + $limb) % $divisor[0];
+            }
+
+            return $remainder === 0;
+        }
+
+        $normalizer = intdiv($base, $divisor[0] + 1);
+
+        if ($normalizer > 1) {
+            $dividend = self::multiplyLimbsBySmall($dividend, $normalizer, $base);
+            $divisor = self::multiplyLimbsBySmall($divisor, $normalizer, $base);
+        }
+
+        array_unshift($dividend, 0);
+        $divisorLength = count($divisor);
+        $quotientLength = count($dividend) - $divisorLength;
+
+        for ($offset = 0; $offset < $quotientLength; $offset++) {
+            $leading = ($dividend[$offset] * $base) + $dividend[$offset + 1];
+            $quotient = intdiv($leading, $divisor[0]);
+            $remainder = $leading % $divisor[0];
+
+            if ($quotient >= $base) {
+                $quotient = $base - 1;
+                $remainder = $leading - ($quotient * $divisor[0]);
+            }
+
+            while ($quotient * $divisor[1]
+                > ($remainder * $base) + $dividend[$offset + 2]
+            ) {
+                $quotient--;
+                $remainder += $divisor[0];
+
+                if ($remainder >= $base) {
+                    break;
+                }
+            }
+
+            if ($quotient === 0) {
+                continue;
+            }
+
+            $product = self::multiplyLimbsBySmallFixed($divisor, $quotient, $base);
+
+            while (self::compareLimbSegment($dividend, $offset, $product) < 0) {
+                $quotient--;
+                $product = self::multiplyLimbsBySmallFixed($divisor, $quotient, $base);
+            }
+
+            self::subtractLimbSegment($dividend, $offset, $product, $base);
+        }
+
+        for ($i = count($dividend) - $divisorLength; $i < count($dividend); $i++) {
+            if ($dividend[$i] !== 0) {
+                return false;
             }
         }
 
-        return $remainder === '0';
+        return true;
+    }
+
+    /** @return list<int> */
+    private static function decimalToLimbs(string $value, int $digitsPerLimb): array
+    {
+        $firstLength = strlen($value) % $digitsPerLimb;
+        $offset = 0;
+        $limbs = [];
+
+        if ($firstLength !== 0) {
+            $limbs[] = (int) substr($value, 0, $firstLength);
+            $offset = $firstLength;
+        }
+
+        for ($length = strlen($value); $offset < $length; $offset += $digitsPerLimb) {
+            $limbs[] = (int) substr($value, $offset, $digitsPerLimb);
+        }
+
+        return $limbs;
+    }
+
+    /**
+     * @param list<int> $limbs
+     * @return list<int>
+     */
+    private static function multiplyLimbsBySmall(array $limbs, int $multiplier, int $base): array
+    {
+        $carry = 0;
+
+        for ($i = count($limbs) - 1; $i >= 0; $i--) {
+            $product = ($limbs[$i] * $multiplier) + $carry;
+            $limbs[$i] = $product % $base;
+            $carry = intdiv($product, $base);
+        }
+
+        if ($carry !== 0) {
+            array_unshift($limbs, $carry);
+        }
+
+        return $limbs;
+    }
+
+    /**
+     * @param list<int> $limbs
+     * @return list<int>
+     */
+    private static function multiplyLimbsBySmallFixed(array $limbs, int $multiplier, int $base): array
+    {
+        $result = array_fill(0, count($limbs) + 1, 0);
+        $carry = 0;
+
+        for ($i = count($limbs) - 1; $i >= 0; $i--) {
+            $product = ($limbs[$i] * $multiplier) + $carry;
+            $result[$i + 1] = $product % $base;
+            $carry = intdiv($product, $base);
+        }
+
+        $result[0] = $carry;
+
+        return $result;
+    }
+
+    /**
+     * @param list<int> $value
+     * @param list<int> $other
+     * @return -1|0|1
+     */
+    private static function compareLimbSegment(array $value, int $offset, array $other): int
+    {
+        foreach ($other as $i => $limb) {
+            if ($value[$offset + $i] !== $limb) {
+                return $value[$offset + $i] <=> $limb;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * @param list<int> $value
+     * @param list<int> $subtrahend
+     */
+    private static function subtractLimbSegment(array &$value, int $offset, array $subtrahend, int $base): void
+    {
+        $borrow = 0;
+
+        for ($i = count($subtrahend) - 1; $i >= 0; $i--) {
+            $index = $offset + $i;
+            $difference = $value[$index] - $subtrahend[$i] - $borrow;
+
+            if ($difference < 0) {
+                $difference += $base;
+                $borrow = 1;
+            } else {
+                $borrow = 0;
+            }
+
+            $value[$index] = $difference;
+        }
     }
 
     /** @return array{-1|0|1, string} */
