@@ -65,14 +65,14 @@ it('replays a one-shot iterable for every merged filter and every traversal', fu
     ]);
 });
 
-it('adds and removes collection filters immutably', function (): void {
+it('adds and removes collection filters without mutating earlier merges', function (): void {
     $integers = new IntFilter([1]);
     $strings = new StringFilter(['one']);
     $base = new MergingFilter($integers);
     $added = $base->withFilter($strings);
     $removed = $added->withoutFilter($integers);
 
-    expect($base->getFilters())->toBe([$integers])
-        ->and($added->getFilters())->toBe([$integers, $strings])
-        ->and($removed->getFilters())->toBe([$strings]);
+    expect($base->toArray())->toBe([1])
+        ->and($added->toArray())->toBe([1, 'one'])
+        ->and($removed->toArray())->toBe(['one']);
 });
