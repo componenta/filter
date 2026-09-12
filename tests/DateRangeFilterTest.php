@@ -98,26 +98,33 @@ it('captures its timezone instead of depending on later global timezone changes'
     }
 });
 
-it('supports an explicit timezone for local date strings', function (): void {
-    $timezone = new DateTimeZone('Asia/Tokyo');
-    $filter = new DateRangeFilter(
-        '2026-06-01 12:00:00',
-        '2026-06-01 12:00:00',
-        timezone: $timezone,
-    );
+it('interprets local bounds in an explicit timezone', function (): void {
+    $previousTimezone = date_default_timezone_get();
+    date_default_timezone_set('UTC');
 
-    expect($filter->accept('2026-06-01 12:00:00'))->toBeTrue();
+    try {
+        $filter = new DateRangeFilter(
+            '2026-06-01 12:00:00',
+            '2026-06-01 12:00:00',
+            timezone: new DateTimeZone('Asia/Tokyo'),
+        );
+
+        expect($filter->accept('2026-06-01T03:00:00+00:00'))->toBeTrue()
+            ->and($filter->accept('2026-06-01T12:00:00+00:00'))->toBeFalse();
+    } finally {
+        date_default_timezone_set($previousTimezone);
+    }
 });
 
-it('supports fixed-offset timezones without transition tables', function (): void {
-    $timezone = new DateTimeZone('+02:00');
+it('interprets local bounds in fixed-offset timezones without transition tables', function (): void {
     $filter = new DateRangeFilter(
         '2026-06-01 12:00:00',
         '2026-06-01 13:00:00',
-        timezone: $timezone,
+        timezone: new DateTimeZone('+02:00'),
     );
 
-    expect($filter->accept('2026-06-01 12:30:00'))->toBeTrue();
+    expect($filter->accept('2026-06-01T10:30:00+00:00'))->toBeTrue()
+        ->and($filter->accept('2026-06-01T12:30:00+00:00'))->toBeFalse();
 });
 
 it('rejects local times normalized through a DST gap', function (): void {
