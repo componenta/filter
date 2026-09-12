@@ -193,7 +193,7 @@ it('treats date-only input as strict local midnight across timezone transitions'
     ))->toThrow(InvalidArgumentException::class);
 });
 
-it('accepts DateTimeInterface values without reparsing through strings', function (): void {
+it('accepts absolute DateTimeInterface instants', function (): void {
     $filter = new DateRangeFilter(
         new DateTimeImmutable('2026-06-01T10:00:00+00:00'),
         new DateTimeImmutable('2026-06-01T12:00:00+00:00'),
