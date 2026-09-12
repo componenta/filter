@@ -44,7 +44,7 @@ final class MultipleOfFilter extends AbstractFilter
             return false;
         }
 
-        if ($exact || (!is_float($value) && !is_float($this->divisor))) {
+        if ($exact || !is_float($value)) {
             return $exact;
         }
 
