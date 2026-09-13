@@ -60,11 +60,15 @@ final class PropertyEqualsFilter extends AbstractFilter
             return false;
         }
 
-        if (!$property->isPublic() || $property->isStatic() || !$property->isInitialized($value)) {
+        if (!$property->isPublic() || $property->isStatic()) {
             return false;
         }
 
         if ($property->isVirtual() && !$property->hasHook(\PropertyHookType::Get)) {
+            return false;
+        }
+
+        if (!$property->hasHook(\PropertyHookType::Get) && !$property->isInitialized($value)) {
             return false;
         }
 

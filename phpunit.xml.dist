@@ -5,7 +5,7 @@
          failOnWarning="true"
          failOnRisky="true"
          failOnNotice="true"
-         failOnSelfDeprecation="true">
+         failOnDeprecation="true">
     <testsuites>
         <testsuite name="Componenta Filter">
             <directory>tests</directory>

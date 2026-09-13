@@ -86,3 +86,24 @@ it('rejects a virtual write-only property hook instead of throwing', function ()
 
     expect((new PropertyEqualsFilter('status', 'active'))->accept($writeOnly))->toBeFalse();
 });
+
+it('reads a public getter before backing storage is initialized', function (): void {
+    $dto = new class {
+        public string $status {
+            get => $this->status ?? 'active';
+        }
+    };
+
+    expect((new PropertyEqualsFilter('status', 'active'))->accept($dto))->toBeTrue();
+});
+
+it('preserves an exception raised by a public getter', function (): void {
+    $dto = new class {
+        public string $status {
+            get => $this->status ?? throw new DomainException('status unavailable');
+        }
+    };
+
+    expect(fn () => (new PropertyEqualsFilter('status', 'active'))->accept($dto))
+        ->toThrow(DomainException::class, 'status unavailable');
+});
