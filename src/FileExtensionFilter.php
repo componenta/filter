@@ -47,7 +47,7 @@ final class FileExtensionFilter extends AbstractFilter
     {
         $path = StringValue::from($value);
 
-        if ($path === null) {
+        if ($path === null || str_contains($path, "\0")) {
             return false;
         }
 
