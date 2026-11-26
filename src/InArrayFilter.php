@@ -9,11 +9,14 @@ namespace Componenta\Filter;
  */
 final class InArrayFilter extends AbstractFilter
 {
+    private readonly array $allowed;
+
     public function __construct(
-        private readonly array $allowed,
+        array $allowed,
         private readonly bool $strict = true,
         iterable $iterable = []
     ) {
+        $this->allowed = ConfigurationArray::copySlots($allowed);
         parent::__construct($iterable);
     }
 

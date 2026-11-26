@@ -11,9 +11,36 @@ final class ArrayValueComparator
     {
     }
 
-    public static function contains(array $values, mixed $needle): bool
+    /**
+     * Index only configuration values with stable string representations.
+     * Floats depend on runtime precision; objects may execute user code.
+     * Keep the original comparison order for any heterogeneous list that
+     * includes such values or values requiring strict identity comparison.
+     *
+     * @return array<string, true>|null
+     */
+    public static function prepareScalarIndex(array $values): ?array
+    {
+        $index = [];
+
+        foreach ($values as $value) {
+            if ($value !== null && !is_string($value) && !is_int($value) && !is_bool($value)) {
+                return null;
+            }
+
+            $index['s:' . (string) $value] = true;
+        }
+
+        return $index;
+    }
+
+    public static function contains(array $values, mixed $needle, ?array $index = null): bool
     {
         $needleString = self::comparisonString($needle);
+
+        if ($index !== null) {
+            return $needleString !== null && isset($index['s:' . $needleString]);
+        }
 
         foreach ($values as $candidate) {
             $candidateString = self::comparisonString($candidate);

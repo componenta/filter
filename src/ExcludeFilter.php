@@ -9,11 +9,14 @@ namespace Componenta\Filter;
  */
 final class ExcludeFilter extends AbstractFilter
 {
+    private readonly array $excluded;
+
     public function __construct(
-        private readonly array $excluded,
+        array $excluded,
         private readonly bool $strict = true,
         iterable $iterable = []
     ) {
+        $this->excluded = ConfigurationArray::copySlots($excluded);
         parent::__construct($iterable);
     }
 

@@ -9,11 +9,14 @@ namespace Componenta\Filter;
  */
 final class EqualsAnyFilter extends AbstractFilter
 {
+    private readonly array $expected;
+
     public function __construct(
-        private readonly array $expected,
+        array $expected,
         private readonly bool $strict = true,
         iterable $iterable = []
     ) {
+        $this->expected = ConfigurationArray::copySlots($expected);
         parent::__construct($iterable);
     }
 

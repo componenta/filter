@@ -9,10 +9,15 @@ namespace Componenta\Filter;
  */
 final class ArrayDiffFilter extends AbstractFilter
 {
+    private readonly array $excluded;
+    private readonly ?array $scalarIndex;
+
     public function __construct(
-        private readonly array $excluded,
+        array $excluded,
         iterable $iterable = []
     ) {
+        $this->excluded = ConfigurationArray::copySlots($excluded);
+        $this->scalarIndex = ArrayValueComparator::prepareScalarIndex($this->excluded);
         parent::__construct($iterable);
     }
 
@@ -33,7 +38,7 @@ final class ArrayDiffFilter extends AbstractFilter
         }
 
         foreach ($value as $item) {
-            if (ArrayValueComparator::contains($this->excluded, $item)) {
+            if (ArrayValueComparator::contains($this->excluded, $item, $this->scalarIndex)) {
                 return false;
             }
         }

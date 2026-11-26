@@ -9,10 +9,15 @@ namespace Componenta\Filter;
  */
 final class ArrayIntersectFilter extends AbstractFilter
 {
+    private readonly array $allowed;
+    private readonly ?array $scalarIndex;
+
     public function __construct(
-        private readonly array $allowed,
+        array $allowed,
         iterable $iterable = []
     ) {
+        $this->allowed = ConfigurationArray::copySlots($allowed);
+        $this->scalarIndex = ArrayValueComparator::prepareScalarIndex($this->allowed);
         parent::__construct($iterable);
     }
 
@@ -33,7 +38,7 @@ final class ArrayIntersectFilter extends AbstractFilter
         }
 
         foreach ($value as $item) {
-            if (ArrayValueComparator::contains($this->allowed, $item)) {
+            if (ArrayValueComparator::contains($this->allowed, $item, $this->scalarIndex)) {
                 return true;
             }
         }
