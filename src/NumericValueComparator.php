@@ -7,8 +7,6 @@ namespace Componenta\Filter;
 /** @internal */
 final class NumericValueComparator
 {
-    private const string PATTERN = '/^[+-]?(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/D';
-
     private function __construct()
     {
     }
@@ -220,9 +218,60 @@ final class NumericValueComparator
     public static function matchString(string $value): ?array
     {
         $value = trim($value, " \t\n\r\v\f");
+        $length = strlen($value);
 
-        return preg_match(self::PATTERN, $value, $matches, PREG_UNMATCHED_AS_NULL) === 1
-            ? $matches
+        if ($length === 0) {
+            return null;
+        }
+
+        $position = $value[0] === '+' || $value[0] === '-' ? 1 : 0;
+        $integerLength = strspn($value, '0123456789', $position);
+        $integer = $integerLength === 0 ? null : substr($value, $position, $integerLength);
+        $position += $integerLength;
+        $fraction = null;
+        $leadingFraction = null;
+        $exponent = null;
+
+        if ($position < $length && $value[$position] === '.') {
+            $position++;
+            $fractionLength = strspn($value, '0123456789', $position);
+
+            if ($integer === null) {
+                if ($fractionLength === 0) {
+                    return null;
+                }
+
+                $leadingFraction = substr($value, $position, $fractionLength);
+            } else {
+                $fraction = substr($value, $position, $fractionLength);
+            }
+
+            $position += $fractionLength;
+        }
+
+        if ($integer === null && $leadingFraction === null) {
+            return null;
+        }
+
+        if ($position < $length && ($value[$position] === 'e' || $value[$position] === 'E')) {
+            $exponentStart = ++$position;
+
+            if ($position < $length && ($value[$position] === '+' || $value[$position] === '-')) {
+                $position++;
+            }
+
+            $exponentLength = strspn($value, '0123456789', $position);
+
+            if ($exponentLength === 0) {
+                return null;
+            }
+
+            $position += $exponentLength;
+            $exponent = substr($value, $exponentStart, $position - $exponentStart);
+        }
+
+        return $position === $length
+            ? [$value, $integer, $fraction, $leadingFraction, $exponent]
             : null;
     }
 
@@ -240,7 +289,7 @@ final class NumericValueComparator
         $previous = ini_set('serialize_precision', '-1');
 
         if ($previous === false) {
-            return sprintf('%.17g', $value);
+            return sprintf('%.17h', $value);
         }
 
         try {
