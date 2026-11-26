@@ -103,15 +103,7 @@ final class PercentageFilter extends AbstractCollectionFilter
                 + intdiv(($count % 100) * $integer, 100);
         }
 
-        // This string is produced by PHP's float formatter, not external input.
-        // Avoid loading the arbitrary-precision comparator for a small ratio.
-        [$mantissa, $exponent] = explode('e', strtolower(FloatDecimalString::from($percentage)), 2) + [1 => '0'];
-        $dot = strpos($mantissa, '.');
-        $decimalPlaces = 2 + ($dot === false ? 0 : strlen($mantissa) - $dot - 1) - (int) $exponent;
-        $digits = ltrim(str_replace('.', '', $mantissa), '0');
-        $stripped = rtrim($digits, '0');
-        $decimalPlaces -= strlen($digits) - strlen($stripped);
-        $digits = $stripped;
+        [$digits, $decimalPlaces] = self::decimalRatio($percentage);
 
         // Prefer integer arithmetic when both coefficients fit and no
         // multiplication can overflow, even for a synthetic large Countable.
@@ -162,5 +154,36 @@ final class PercentageFilter extends AbstractCollectionFilter
         }
 
         return (int) substr($number, 0, $length);
+    }
+
+    /**
+     * @return array{string, int} Decimal digits and denominator power of ten
+     * including the division by one hundred.
+     */
+    private static function decimalRatio(float $percentage): array
+    {
+        // At 0 < percentage < 100, decimals with at most four fractional
+        // digits are separated by at least 1e-4, vastly more than a float ULP.
+        // An exact float round trip identifies the unique shortest decimal
+        // at that scale; values one ULP away cannot take this path.
+        $scale = 10;
+
+        for ($places = 1; $places <= 4; $places++, $scale *= 10) {
+            $numerator = (int) round($percentage * $scale);
+
+            if ($numerator / $scale === $percentage) {
+                return [(string) $numerator, $places + 2];
+            }
+        }
+
+        // The remaining values use PHP's shortest round-trip decimal form.
+        [$mantissa, $exponent] = explode('e', strtolower(FloatDecimalString::from($percentage)), 2) + [1 => '0'];
+        $dot = strpos($mantissa, '.');
+        $decimalPlaces = 2 + ($dot === false ? 0 : strlen($mantissa) - $dot - 1) - (int) $exponent;
+        $digits = ltrim(str_replace('.', '', $mantissa), '0');
+        $stripped = rtrim($digits, '0');
+        $decimalPlaces -= strlen($digits) - strlen($stripped);
+
+        return [$stripped, $decimalPlaces];
     }
 }
