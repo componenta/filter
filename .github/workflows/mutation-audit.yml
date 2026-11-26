@@ -9,6 +9,12 @@ on:
       - 'tests/FilterVarInputOwnershipTest.php'
       - 'tests/FilterVarFlatArrayEquivalenceTest.php'
       - 'tests/PercentageIntervalBoundaryTest.php'
+      - 'tests/NumericRestrictedPrecisionTest.php'
+      - 'tests/Fixtures/float-decimal-restricted.php'
+      - 'tests/DateRangeTimezoneOwnershipTest.php'
+      - 'tests/FileExtensionBoundaryTest.php'
+      - 'tests/MergingFilterReplayIntegrityTest.php'
+      - 'composer.json'
   workflow_dispatch:
 
 jobs:

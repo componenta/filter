@@ -8,6 +8,12 @@ on:
       - 'phpbench.json.dist'
       - 'src/FilterVarFilter.php'
       - 'src/PercentageFilter.php'
+      - 'src/FloatDecimalString.php'
+      - 'src/DateRangeFilter.php'
+      - 'src/FileExtensionFilter.php'
+      - 'src/MergingFilter.php'
+      - 'src/ReplayableSource.php'
+      - 'composer.json'
   workflow_dispatch:
     inputs:
       baseline:
