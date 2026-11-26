@@ -20,9 +20,11 @@ it('agrees with native scalar evaluation for detached flat arrays across flags-o
             $scalarFlags = $id === FILTER_VALIDATE_BOOLEAN ? $flags | FILTER_NULL_ON_FAILURE : $flags;
             $failure = ($scalarFlags & FILTER_NULL_ON_FAILURE) !== 0 ? null : false;
             $required = new FilterVarFilter($id, $flags | FILTER_REQUIRE_ARRAY);
-            $generic = new FilterVarFilter($id, ['flags' => $flags | FILTER_REQUIRE_ARRAY]);
+            $flagsOnly = new FilterVarFilter($id, ['flags' => $flags | FILTER_REQUIRE_ARRAY]);
+            $generic = new FilterVarFilter($id, ['flags' => $flags | FILTER_REQUIRE_ARRAY, 'options' => []]);
 
             expect($required->accept([]))->toBeTrue()
+                ->and($flagsOnly->accept([]))->toBeTrue()
                 ->and($generic->accept([]))->toBeTrue();
 
             foreach ($values as $value) {
@@ -46,6 +48,10 @@ it('agrees with native scalar evaluation for detached flat arrays across flags-o
                     $fastDiagnostics = $diagnostics;
 
                     $diagnostics = [];
+                    $flagsOnlyResult = $flagsOnly->accept([&$reference, &$reference]);
+                    $flagsOnlyDiagnostics = $diagnostics;
+
+                    $diagnostics = [];
                     $genericResult = $generic->accept([&$reference, &$reference]);
                     $genericDiagnostics = $diagnostics;
                 } finally {
@@ -53,8 +59,10 @@ it('agrees with native scalar evaluation for detached flat arrays across flags-o
                 }
 
                 expect($fastResult)->toBe($expected, $name)
+                    ->and($flagsOnlyResult)->toBe($expected, $name)
                     ->and($genericResult)->toBe($expected, $name)
                     ->and($fastDiagnostics)->toBe($nativeDiagnostics, $name)
+                    ->and($flagsOnlyDiagnostics)->toBe($nativeDiagnostics, $name)
                     ->and($genericDiagnostics)->toBe($nativeDiagnostics, $name)
                     ->and(get_debug_type($reference))->toBe(get_debug_type($value));
 
@@ -179,4 +187,38 @@ it('preserves warning handler effects on later referenced input slots', function
     } finally {
         restore_error_handler();
     }
+});
+
+it('preserves flags-only option representation while respecting native numeric flag semantics', function (): void {
+    foreach ([
+        [FILTER_VALIDATE_INT, FILTER_FLAG_ALLOW_OCTAL, ['0755', '42'], ['0x2a']],
+        [FILTER_VALIDATE_INT, FILTER_FLAG_ALLOW_HEX, ['0x2a', '42'], ['0755']],
+        [FILTER_VALIDATE_FLOAT, FILTER_FLAG_ALLOW_THOUSAND, ['1,234.5', '0.25'], ['invalid']],
+        [FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE, ['false', 'true', '0'], ['invalid']],
+    ] as [$id, $flag, $valid, $invalid]) {
+        $options = ['flags' => $flag | FILTER_REQUIRE_ARRAY];
+        $filter = new FilterVarFilter($id, $options);
+
+        expect($filter->accept($valid))->toBeTrue()
+            ->and($filter->accept($invalid))->toBeFalse()
+            ->and($filter->getOptions())->toBe($options)
+            ->and($filter->withOptions(['flags' => $flag | FILTER_REQUIRE_ARRAY, 'options' => []])->accept($valid))->toBeTrue()
+            ->and($filter->withOptions($flag | FILTER_REQUIRE_ARRAY)->accept($invalid))->toBeFalse();
+    }
+});
+
+it('does not bypass value constraints in native option arrays', function (): void {
+    $options = [
+        'flags' => FILTER_REQUIRE_ARRAY,
+        'options' => ['min_range' => 10, 'max_range' => 20, 'default' => 15],
+    ];
+    $filter = new FilterVarFilter(FILTER_VALIDATE_INT, $options);
+    $outside = '9';
+    $inside = '15';
+
+    expect($filter->accept([&$inside, &$outside]))->toBeFalse()
+        ->and($filter->accept([&$inside]))->toBeTrue()
+        ->and($inside)->toBe('15')
+        ->and($outside)->toBe('9')
+        ->and($filter->getOptions())->toBe($options);
 });

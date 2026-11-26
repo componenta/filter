@@ -144,12 +144,19 @@ final class FilterVarFilter extends AbstractFilter
     ): bool {
         // Only batch flags-only numeric and boolean validation. Other filters
         // may depend on runtime configuration, e.g. the default charset.
-        if (is_int($options) && in_array($this->filter, [
-            FILTER_VALIDATE_INT,
-            FILTER_VALIDATE_FLOAT,
-            FILTER_VALIDATE_BOOLEAN,
-        ], true)) {
-            $flatResult = $this->acceptFlatScalars($values, $options, $throwOnFailure, $nullOnFailure);
+        if ((is_int($options) || (count($options) === 1 && isset($options['flags'])))
+            && in_array($this->filter, [
+                FILTER_VALIDATE_INT,
+                FILTER_VALIDATE_FLOAT,
+                FILTER_VALIDATE_BOOLEAN,
+            ], true)
+        ) {
+            $flatResult = $this->acceptFlatScalars(
+                $values,
+                self::flags($options),
+                $throwOnFailure,
+                $nullOnFailure,
+            );
 
             if ($flatResult !== null) {
                 return $flatResult;
