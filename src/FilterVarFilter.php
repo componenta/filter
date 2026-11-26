@@ -142,51 +142,95 @@ final class FilterVarFilter extends AbstractFilter
         bool $throwOnFailure,
         bool $nullOnFailure,
     ): bool {
-        $stack = [['values' => $values, 'keys' => array_keys($values), 'position' => 0, 'reference' => null]];
-        $activeReferences = [];
-        $accepted = true;
+        // Flags-only native filters with flat scalar input cannot invoke a
+        // callback or Stringable. Detach the slots before native filtering.
+        if (is_int($options)) {
+            $flatResult = $this->acceptFlatScalars($values, $options, $throwOnFailure, $nullOnFailure);
 
-        while ($stack !== []) {
-            $last = array_key_last($stack);
-            $position = $stack[$last]['position']++;
-
-            if ($position === count($stack[$last]['keys'])) {
-                $reference = $stack[$last]['reference'];
-
-                if ($reference !== null) {
-                    unset($activeReferences[$reference]);
-                }
-
-                array_pop($stack);
-                continue;
-            }
-
-            $key = $stack[$last]['keys'][$position];
-            $value = $stack[$last]['values'][$key];
-
-            if (is_array($value)) {
-                $reference = \ReflectionReference::fromArrayElement($stack[$last]['values'], $key)?->getId();
-
-                if ($reference !== null) {
-                    if (isset($activeReferences[$reference])) {
-                        return false;
-                    }
-
-                    $activeReferences[$reference] = true;
-                }
-
-                $stack[] = ['values' => $value, 'keys' => array_keys($value), 'position' => 0, 'reference' => $reference];
-                continue;
-            }
-
-            // Do not short-circuit ordinary false results: native array mode
-            // evaluates every leaf, including stateful callback invocations.
-            if (!$this->acceptScalar($value, $options, $sentinel, $throwOnFailure, $nullOnFailure)) {
-                $accepted = false;
+            if ($flatResult !== null) {
+                return $flatResult;
             }
         }
 
-        return $accepted;
+        $stack = [];
+        $activeReferences = [];
+        $accepted = true;
+        $keys = array_keys($values);
+        $position = 0;
+        $reference = null;
+
+        while (true) {
+            $length = count($keys);
+
+            for (; $position < $length; $position++) {
+                $key = $keys[$position];
+                $value = $values[$key];
+
+                if (!is_array($value)) {
+                    // Preserve every callback invocation and native leaf order.
+                    if (!$this->acceptScalar($value, $options, $sentinel, $throwOnFailure, $nullOnFailure)) {
+                        $accepted = false;
+                    }
+
+                    continue;
+                }
+
+                $childReference = \ReflectionReference::fromArrayElement($values, $key)?->getId();
+
+                if ($childReference !== null) {
+                    if (isset($activeReferences[$childReference])) {
+                        return false;
+                    }
+
+                    $activeReferences[$childReference] = true;
+                }
+
+                // Only suspend a frame when descending into a nested array.
+                $stack[] = [$values, $keys, $position + 1, $reference];
+                $values = $value;
+                $keys = array_keys($value);
+                $position = 0;
+                $reference = $childReference;
+
+                continue 2;
+            }
+
+            if ($reference !== null) {
+                unset($activeReferences[$reference]);
+            }
+
+            if ($stack === []) {
+                return $accepted;
+            }
+
+            [$values, $keys, $position, $reference] = array_pop($stack);
+        }
+    }
+
+    /**
+     * Returns null when a value requires the general nonmutating walker.
+     * No references from the original array are passed to filter_var().
+     */
+    private function acceptFlatScalars(
+        array $values,
+        int $flags,
+        bool $throwOnFailure,
+        bool $nullOnFailure,
+    ): ?bool {
+        $detached = [];
+
+        foreach ($values as $value) {
+            if ($value !== null && !is_scalar($value)) {
+                return null;
+            }
+
+            $detached[] = $value;
+        }
+
+        $result = filter_var($detached, $this->filter, $flags | FILTER_REQUIRE_ARRAY);
+
+        return is_array($result)
+            && ($throwOnFailure || !in_array($nullOnFailure ? null : false, $result, true));
     }
 
     private static function isKnownFilter(int $filter): bool
