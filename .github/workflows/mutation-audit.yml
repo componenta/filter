@@ -6,6 +6,8 @@ on:
       - '.github/workflows/mutation-audit.yml'
       - 'tests/ExactDivisibilityOracleTest.php'
       - 'tests/Fixtures/divisibility-vectors.json'
+      - 'tests/FilterVarInputOwnershipTest.php'
+      - 'tests/PercentageIntervalBoundaryTest.php'
   workflow_dispatch:
 
 jobs:

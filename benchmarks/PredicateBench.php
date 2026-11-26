@@ -36,6 +36,9 @@ final class PredicateBench
     private FilterVarFilter $nativeInt;
     private FilterVarFilter $nativeCallback;
     private FilterVarFilter $nativeCallbackArray;
+    private FilterVarFilter $nativeIntegerArray;
+    private array $nativeFlatInput;
+    private array $nativeNestedInput;
 
     public function setUp(): void
     {
@@ -58,6 +61,9 @@ final class PredicateBench
             'flags' => FILTER_REQUIRE_ARRAY,
             'options' => static fn(int $value): bool => $value > 0,
         ]);
+        $this->nativeIntegerArray = new FilterVarFilter(FILTER_VALIDATE_INT, FILTER_REQUIRE_ARRAY);
+        $this->nativeFlatInput = array_map(strval(...), range(1, 100));
+        $this->nativeNestedInput = array_chunk($this->nativeFlatInput, 10);
     }
 
     public function benchIntPredicate(): void
@@ -134,6 +140,18 @@ final class PredicateBench
     public function benchNativeCallbackArray(): void
     {
         $this->nativeCallbackArray->accept(['42', ['12', '7'], '15']);
+    }
+
+    #[Bench\Revs(100)]
+    public function benchNativeIntegerFlatArray(): void
+    {
+        $this->nativeIntegerArray->accept($this->nativeFlatInput);
+    }
+
+    #[Bench\Revs(100)]
+    public function benchNativeIntegerNestedArray(): void
+    {
+        $this->nativeIntegerArray->accept($this->nativeNestedInput);
     }
 
     public function benchSeededRandom(): void

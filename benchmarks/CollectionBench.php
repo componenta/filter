@@ -23,6 +23,7 @@ final class CollectionBench
     private array $duplicates;
     private MergingFilter $merged;
     private PercentageFilter $percentage;
+    private PercentageFilter $precisePercentage;
 
     public function provideSizes(): iterable
     {
@@ -45,6 +46,7 @@ final class CollectionBench
         }
 
         $this->percentage = new PercentageFilter(29.5, $this->values);
+        $this->precisePercentage = new PercentageFilter(29.512345678901234, $this->values);
         $this->merged = (new MergingFilter(new IntFilter(), new StringFilter()))
             ->withIterable(self::generator($this->mixed));
         $this->merged->toArray();
@@ -89,6 +91,12 @@ final class CollectionBench
     public function benchPercentageHighPrecision(): void
     {
         (new PercentageFilter(29.512345678901234, $this->values))->toArray();
+    }
+
+    #[Bench\Revs(20)]
+    public function benchPercentageHighPrecisionRepeated(): void
+    {
+        $this->precisePercentage->toArray();
     }
 
     public function benchPercentageGenerator(): void
