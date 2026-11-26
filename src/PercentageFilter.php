@@ -52,7 +52,7 @@ final class PercentageFilter extends AbstractCollectionFilter
                 throw new \UnexpectedValueException('A countable source cannot have a negative size');
             }
 
-            $allowedCount = NumericValueComparator::percentageCount($count, $this->percentage);
+            $allowedCount = self::calculateCount($count, $this->percentage);
 
             if ($allowedCount === 0) {
                 return;
@@ -77,11 +77,90 @@ final class PercentageFilter extends AbstractCollectionFilter
             $items[] = [$key, $value];
         }
 
-        $allowedCount = NumericValueComparator::percentageCount(count($items), $this->percentage);
+        $allowedCount = self::calculateCount(count($items), $this->percentage);
 
         for ($i = 0; $i < $allowedCount; $i++) {
             [$key, $value] = $items[$i];
             yield $key => $value;
         }
+    }
+
+    /**
+     * Floors count * percentage / 100 using the shortest decimal representation
+     * of the finite float, without rounding a near-boundary value up or down.
+     * The caller guarantees 0 <= percentage <= 100 and a non-negative count.
+     */
+    private static function calculateCount(int $count, float $percentage): int
+    {
+        if ($count === 0 || $percentage === 0.0) {
+            return 0;
+        }
+
+        if ($percentage === floor($percentage)) {
+            $integer = (int) $percentage;
+
+            return intdiv($count, 100) * $integer
+                + intdiv(($count % 100) * $integer, 100);
+        }
+
+        // This string is produced by PHP's float formatter, not external input.
+        // Avoid loading the arbitrary-precision comparator for a small ratio.
+        [$mantissa, $exponent] = explode('e', strtolower(FloatDecimalString::from($percentage)), 2) + [1 => '0'];
+        $dot = strpos($mantissa, '.');
+        $decimalPlaces = 2 + ($dot === false ? 0 : strlen($mantissa) - $dot - 1) - (int) $exponent;
+        $digits = ltrim(str_replace('.', '', $mantissa), '0');
+        $stripped = rtrim($digits, '0');
+        $decimalPlaces -= strlen($digits) - strlen($stripped);
+        $digits = $stripped;
+
+        // Prefer integer arithmetic when both coefficients fit and no
+        // multiplication can overflow, even for a synthetic large Countable.
+        $maxDigits = strlen((string) PHP_INT_MAX) - 1;
+
+        if ($decimalPlaces <= $maxDigits && strlen($digits) <= $maxDigits) {
+            $numerator = (int) $digits;
+            $denominator = (int) str_pad('1', $decimalPlaces + 1, '0');
+
+            if ($count <= intdiv(PHP_INT_MAX, $numerator)) {
+                return intdiv($count * $numerator, $denominator);
+            }
+
+            $remainder = $count % $denominator;
+
+            if ($remainder <= intdiv(PHP_INT_MAX, $numerator)) {
+                return intdiv($count, $denominator) * $numerator
+                    + intdiv($remainder * $numerator, $denominator);
+            }
+        }
+
+        $left = (string) $count;
+        $leftLength = strlen($left);
+        $rightLength = strlen($digits);
+
+        if ($leftLength + $rightLength <= $decimalPlaces) {
+            return 0;
+        }
+
+        $product = array_fill(0, $leftLength + $rightLength, 0);
+
+        for ($i = $leftLength - 1; $i >= 0; $i--) {
+            for ($j = $rightLength - 1; $j >= 0; $j--) {
+                $product[$i + $j + 1] += (ord($left[$i]) - 48) * (ord($digits[$j]) - 48);
+            }
+        }
+
+        for ($i = count($product) - 1; $i > 0; $i--) {
+            $product[$i - 1] += intdiv($product[$i], 10);
+            $product[$i] %= 10;
+        }
+
+        $number = ltrim(implode('', $product), '0');
+        $length = strlen($number) - $decimalPlaces;
+
+        if ($length <= 0 || $number === '') {
+            return 0;
+        }
+
+        return (int) substr($number, 0, $length);
     }
 }

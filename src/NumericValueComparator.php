@@ -105,81 +105,6 @@ final class NumericValueComparator
         return self::compareSignedInteger($valueScale, $minimumValueScale) >= 0;
     }
 
-    /**
-     * Floors count * percentage / 100 using the shortest decimal representation
-     * of the finite float, without rounding a near-boundary value up or down.
-     * The caller guarantees 0 <= percentage <= 100 and a non-negative count.
-     */
-    public static function percentageCount(int $count, float $percentage): int
-    {
-        if ($count === 0 || $percentage === 0.0) {
-            return 0;
-        }
-
-        if ($percentage === floor($percentage)) {
-            $integer = (int) $percentage;
-
-            return intdiv($count, 100) * $integer
-                + intdiv(($count % 100) * $integer, 100);
-        }
-
-        [, $digits, , $scale] = self::normalize($percentage);
-        [$digits, $scale] = self::stripTrailingZeros($digits, $scale);
-        $shift = $scale[0] * (int) $scale[1] - 2;
-
-        // A positive percentage below one hundred has a negative shift.
-        // Prefer integer arithmetic when both coefficients fit and no
-        // multiplication can overflow, even for a synthetic large Countable.
-        $decimalPlaces = -$shift;
-        $maxDigits = strlen((string) PHP_INT_MAX) - 1;
-
-        if ($decimalPlaces <= $maxDigits && strlen($digits) <= $maxDigits) {
-            $numerator = (int) $digits;
-            $denominator = (int) str_pad('1', $decimalPlaces + 1, '0');
-
-            if ($count <= intdiv(PHP_INT_MAX, $numerator)) {
-                return intdiv($count * $numerator, $denominator);
-            }
-
-            $remainder = $count % $denominator;
-
-            if ($remainder <= intdiv(PHP_INT_MAX, $numerator)) {
-                return intdiv($count, $denominator) * $numerator
-                    + intdiv($remainder * $numerator, $denominator);
-            }
-        }
-
-        $left = (string) $count;
-        $leftLength = strlen($left);
-        $rightLength = strlen($digits);
-
-        if ($leftLength + $rightLength <= $decimalPlaces) {
-            return 0;
-        }
-
-        $product = array_fill(0, $leftLength + $rightLength, 0);
-
-        for ($i = $leftLength - 1; $i >= 0; $i--) {
-            for ($j = $rightLength - 1; $j >= 0; $j--) {
-                $product[$i + $j + 1] += (ord($left[$i]) - 48) * (ord($digits[$j]) - 48);
-            }
-        }
-
-        for ($i = count($product) - 1; $i > 0; $i--) {
-            $product[$i - 1] += intdiv($product[$i], 10);
-            $product[$i] %= 10;
-        }
-
-        $number = ltrim(implode('', $product), '0');
-        $length = strlen($number) + $shift;
-
-        if ($length <= 0 || $number === '') {
-            return 0;
-        }
-
-        return (int) ($shift < 0 ? substr($number, 0, $length) : $number . str_repeat('0', $shift));
-    }
-
     public static function isValid(mixed $value): bool
     {
         return is_int($value)
@@ -207,7 +132,7 @@ final class NumericValueComparator
                 return null;
             }
 
-            $number = self::floatString($value);
+            $number = FloatDecimalString::from($value);
         } elseif (is_string($value)) {
             $number = $value;
         } else {
@@ -308,32 +233,6 @@ final class NumericValueComparator
             : null;
     }
 
-    private static function floatString(float $value): string
-    {
-        $serializePrecision = ini_get('serialize_precision');
-
-        if ($serializePrecision === '-1') {
-            return json_encode(
-                $value,
-                JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR,
-            );
-        }
-
-        $previous = ini_set('serialize_precision', '-1');
-
-        if ($previous === false) {
-            return sprintf('%.17h', $value);
-        }
-
-        try {
-            return json_encode(
-                $value,
-                JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR,
-            );
-        } finally {
-            ini_set('serialize_precision', $previous);
-        }
-    }
 
     /**
      * @param array{-1|0|1, string} $scale
