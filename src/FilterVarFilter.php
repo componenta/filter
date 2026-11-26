@@ -58,20 +58,7 @@ final class FilterVarFilter extends AbstractFilter
         $options = $this->options;
 
         if ($this->filter === FILTER_CALLBACK) {
-            $flags = self::flags($options);
-            $options['flags'] = $flags & ~FILTER_NULL_ON_FAILURE;
-
-            if (($flags & (FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY)) !== 0) {
-                // Only a callback's actual false return is a rejection, not
-                // a false value inside its returned data. Invoke the original
-                // through filter_var to retain native scalar type coercion.
-                $callback = $options['options'];
-                $options['options'] = static fn(mixed $input): bool => filter_var(
-                    $input,
-                    FILTER_CALLBACK,
-                    ['options' => $callback],
-                ) !== false;
-            }
+            $options['flags'] = self::flags($options) & ~FILTER_NULL_ON_FAILURE;
         }
 
         $defaultFailureSentinel = self::replaceNativeDefault($this->filter, $options);
@@ -87,26 +74,53 @@ final class FilterVarFilter extends AbstractFilter
             }
         }
 
-        try {
-            $result = filter_var($value, $this->filter, $options);
-        } catch (\Filter\FilterFailedException) {
+        $flags = self::flags($options);
+        $arrayMode = ($flags & (FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY)) !== 0;
+        $isArray = is_array($value);
+
+        if ($isArray) {
+            if (!$arrayMode || ($flags & FILTER_REQUIRE_SCALAR) !== 0) {
+                return false;
+            }
+        } elseif (($flags & FILTER_REQUIRE_ARRAY) !== 0) {
             return false;
         }
 
-        $flags = self::flags($options);
-        $arrayMode = ($flags & (FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY)) !== 0;
-        $nullOnFailure = self::returnsNullOnFailure($this->filter, $flags);
-
+        // Native array filtering writes through PHP references inside the
+        // input array. A predicate must not change caller-owned values.
+        // Preserve native scalar conversion and flag semantics, but evaluate
+        // each array leaf independently without producing a transformed array.
         if ($arrayMode) {
-            return is_array($result)
-                && !self::containsFailure(
-                    $result,
-                    $throwOnFailure ? null : $nullOnFailure,
-                    $defaultFailureSentinel,
-                );
+            $flags &= ~(FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY);
+
+            if (is_array($options)) {
+                $options['flags'] = $flags;
+            } else {
+                $options = $flags;
+            }
         }
 
-        if ($defaultFailureSentinel !== null && $result === $defaultFailureSentinel) {
+        $nullOnFailure = self::returnsNullOnFailure($this->filter, $flags);
+
+        try {
+            return $isArray
+                ? $this->acceptArray($value, $options, $defaultFailureSentinel, $throwOnFailure, $nullOnFailure)
+                : $this->acceptScalar($value, $options, $defaultFailureSentinel, $throwOnFailure, $nullOnFailure);
+        } catch (\Filter\FilterFailedException) {
+            return false;
+        }
+    }
+
+    private function acceptScalar(
+        mixed $value,
+        array|int $options,
+        ?object $sentinel,
+        bool $throwOnFailure,
+        bool $nullOnFailure,
+    ): bool {
+        $result = filter_var($value, $this->filter, $options);
+
+        if ($sentinel !== null && $result === $sentinel) {
             return false;
         }
 
@@ -115,6 +129,64 @@ final class FilterVarFilter extends AbstractFilter
         }
 
         return $nullOnFailure ? $result !== null : $result !== false;
+    }
+
+    /**
+     * Walk arrays in native depth-first input order without changing their
+     * references or recursing through the native filter extension.
+     */
+    private function acceptArray(
+        array $values,
+        array|int $options,
+        ?object $sentinel,
+        bool $throwOnFailure,
+        bool $nullOnFailure,
+    ): bool {
+        $stack = [['values' => $values, 'keys' => array_keys($values), 'position' => 0, 'reference' => null]];
+        $activeReferences = [];
+        $accepted = true;
+
+        while ($stack !== []) {
+            $last = array_key_last($stack);
+            $position = $stack[$last]['position']++;
+
+            if ($position === count($stack[$last]['keys'])) {
+                $reference = $stack[$last]['reference'];
+
+                if ($reference !== null) {
+                    unset($activeReferences[$reference]);
+                }
+
+                array_pop($stack);
+                continue;
+            }
+
+            $key = $stack[$last]['keys'][$position];
+            $value = $stack[$last]['values'][$key];
+
+            if (is_array($value)) {
+                $reference = \ReflectionReference::fromArrayElement($stack[$last]['values'], $key)?->getId();
+
+                if ($reference !== null) {
+                    if (isset($activeReferences[$reference])) {
+                        return false;
+                    }
+
+                    $activeReferences[$reference] = true;
+                }
+
+                $stack[] = ['values' => $value, 'keys' => array_keys($value), 'position' => 0, 'reference' => $reference];
+                continue;
+            }
+
+            // Do not short-circuit ordinary false results: native array mode
+            // evaluates every leaf, including stateful callback invocations.
+            if (!$this->acceptScalar($value, $options, $sentinel, $throwOnFailure, $nullOnFailure)) {
+                $accepted = false;
+            }
+        }
+
+        return $accepted;
     }
 
     private static function isKnownFilter(int $filter): bool
@@ -276,64 +348,6 @@ final class FilterVarFilter extends AbstractFilter
             FILTER_VALIDATE_IP,
             FILTER_VALIDATE_MAC,
         ], true);
-    }
-
-    private static function containsFailure(
-        array $values,
-        ?bool $nullOnFailure,
-        ?object $sentinel = null,
-    ): bool {
-        $stack = [['values' => $values, 'reference' => null]];
-        $activeReferences = [];
-
-        while ($stack !== []) {
-            $entry = array_pop($stack);
-
-            if (!array_key_exists('values', $entry)) {
-                unset($activeReferences[$entry['reference']]);
-                continue;
-            }
-
-            $referenceId = $entry['reference'];
-
-            if ($referenceId !== null) {
-                if (isset($activeReferences[$referenceId])) {
-                    return true;
-                }
-
-                $activeReferences[$referenceId] = true;
-                $stack[] = ['reference' => $referenceId];
-            }
-
-            $current = $entry['values'];
-            $keys = array_keys($current);
-
-            for ($i = count($keys) - 1; $i >= 0; $i--) {
-                $key = $keys[$i];
-                $value = $current[$key];
-
-                if (is_array($value)) {
-                    $reference = \ReflectionReference::fromArrayElement($current, $key);
-                    $stack[] = [
-                        'values' => $value,
-                        'reference' => $reference?->getId(),
-                    ];
-                    continue;
-                }
-
-                if ($sentinel !== null && $value === $sentinel) {
-                    return true;
-                }
-
-                if ($nullOnFailure !== null
-                    && ($nullOnFailure ? $value === null : $value === false)
-                ) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     private static function isValidRegexp(string $regexp): bool
