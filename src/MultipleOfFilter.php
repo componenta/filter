@@ -13,16 +13,20 @@ namespace Componenta\Filter;
  */
 final class MultipleOfFilter extends AbstractFilter
 {
+    private readonly array $normalizedDivisor;
+    private ?array $preparedDivisor = null;
+
     public function __construct(
         private readonly int|float|string $divisor,
         iterable $iterable = []
     ) {
-        $zeroComparison = NumericValueComparator::compare($divisor, 0);
+        $normalized = NumericValueComparator::normalize($divisor);
 
-        if ($zeroComparison === null || $zeroComparison === 0) {
+        if ($normalized === null || $normalized[0] === 0) {
             throw new \InvalidArgumentException('Divisor must be a valid non-zero numeric value');
         }
 
+        $this->normalizedDivisor = $normalized;
         parent::__construct($iterable);
     }
 
@@ -38,11 +42,22 @@ final class MultipleOfFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        $exact = NumericValueComparator::isMultipleOf($value, $this->divisor);
+        if (is_int($value) && is_int($this->divisor)) {
+            return $value % $this->divisor === 0;
+        }
 
-        if ($exact === null) {
+        $normalized = NumericValueComparator::normalize($value);
+
+        if ($normalized === null) {
             return false;
         }
+
+        if ($normalized[0] === 0) {
+            return true;
+        }
+
+        $this->preparedDivisor ??= NumericValueComparator::prepareDivisor($this->normalizedDivisor);
+        $exact = NumericValueComparator::isMultipleOfPrepared($normalized, $this->preparedDivisor);
 
         if ($exact || !is_float($value)) {
             return $exact;

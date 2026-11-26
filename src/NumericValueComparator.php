@@ -62,31 +62,33 @@ final class NumericValueComparator
     }
 
     /**
-     * Checks mathematically exact divisibility for decimal values.
+     * Prepares an already validated, non-zero divisor for repeated exact checks.
      *
-     * @return bool|null Null when either value is invalid or the divisor is zero.
+     * @param array{-1|0|1, string, array{-1|0|1, string}, array{-1|0|1, string}} $divisor
+     * @return array{int, int, string, array{-1|0|1, string}}
      */
-    public static function isMultipleOf(mixed $value, mixed $divisor): ?bool
+    public static function prepareDivisor(array $divisor): array
     {
-        $value = self::normalize($value);
-        $divisor = self::normalize($divisor);
+        [, $digits, , $scale] = $divisor;
+        [$digits, $scale] = self::stripTrailingZeros($digits, $scale);
+        [$twos, $coprime] = self::factorOut($digits, 2);
+        [$fives, $coprime] = self::factorOut($coprime, 5);
 
-        if ($value === null || $divisor === null || $divisor[0] === 0) {
-            return null;
-        }
+        return [$twos, $fives, $coprime, $scale];
+    }
 
-        if ($value[0] === 0) {
-            return true;
-        }
-
+    /**
+     * Checks exact divisibility for a normalized, non-zero decimal value.
+     *
+     * @param array{-1|0|1, string, array{-1|0|1, string}, array{-1|0|1, string}} $value
+     * @param array{int, int, string, array{-1|0|1, string}} $divisor
+     */
+    public static function isMultipleOfPrepared(array $value, array $divisor): bool
+    {
         [, $valueDigits, , $valueScale] = $value;
-        [, $divisorDigits, , $divisorScale] = $divisor;
+        [$divisorTwos, $divisorFives, $coprimeDivisor, $divisorScale] = $divisor;
 
         [$valueDigits, $valueScale] = self::stripTrailingZeros($valueDigits, $valueScale);
-        [$divisorDigits, $divisorScale] = self::stripTrailingZeros($divisorDigits, $divisorScale);
-
-        [$divisorTwos, $coprimeDivisor] = self::factorOut($divisorDigits, 2);
-        [$divisorFives, $coprimeDivisor] = self::factorOut($coprimeDivisor, 5);
         [$valueTwos] = self::factorOut($valueDigits, 2, $divisorTwos);
         [$valueFives] = self::factorOut($valueDigits, 5, $divisorFives);
 
