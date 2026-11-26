@@ -1,7 +1,17 @@
 name: Benchmarks
 
 on:
+  push:
+    paths:
+      - '.github/workflows/benchmarks.yml'
+      - 'benchmarks/**'
+      - 'phpbench.json.dist'
   workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Base commit, branch or tag (default: repository default branch)'
+        required: false
+        type: string
 
 jobs:
   benchmark:
@@ -13,13 +23,40 @@ jobs:
         php: ['8.4', '8.5']
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           coverage: none
           tools: composer:v2
       - run: composer install --no-interaction --prefer-dist
-      - name: Run PHPBench
+      - name: Prepare comparison baseline
+        env:
+          BASE_REF: ${{ inputs.baseline || github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline_sha=$(git rev-parse --verify --end-of-options "$BASE_REF^{commit}" || git rev-parse --verify --end-of-options "origin/$BASE_REF^{commit}")
+          echo "Baseline: $baseline_sha"
+          echo "Candidate: $(git rev-parse HEAD)"
+          baseline_dir="$RUNNER_TEMP/filter-benchmark-baseline"
+          git worktree add --detach "$baseline_dir" "$baseline_sha"
+          # Run the same benchmark definitions and dependency versions on both revisions.
+          rm -rf "$baseline_dir/benchmarks"
+          cp -R benchmarks "$baseline_dir/benchmarks"
+          cp composer.json composer.lock phpbench.json.dist "$baseline_dir/"
+          (
+            cd "$baseline_dir"
+            composer install --no-interaction --prefer-dist
+          )
+      - name: Run baseline PHPBench
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/filter-benchmark-baseline"
+          composer benchmark 2>&1 | tee "$GITHUB_WORKSPACE/benchmark-baseline.txt"
+      - name: Run candidate PHPBench
         shell: bash
         run: |
           set -o pipefail
@@ -27,4 +64,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: benchmark-php-${{ matrix.php }}
-          path: benchmark-report.txt
+          path: |
+            benchmark-baseline.txt
+            benchmark-report.txt

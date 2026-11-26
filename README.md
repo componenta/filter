@@ -148,4 +148,4 @@ composer test
 composer benchmark
 ```
 
-CI validates Composer metadata, lints PHP sources, tests and benchmarks, and runs Pest on PHP 8.4 and 8.5 in normal, seeded random and reverse order. PHPBench subjects are smoke-tested on PHP 8.4. The manual Benchmarks workflow runs full samples on both versions. Compare like-for-like environments, dependency versions, input sizes, warm and cold paths; smoke runs are not performance evidence. A manual mutation-audit workflow is available for checking test sensitivity.
+CI validates Composer metadata, lints PHP sources, tests and benchmarks, and runs Pest on PHP 8.4 and 8.5 in normal, seeded random and reverse order. PHPBench subjects are smoke-tested on PHP 8.4. The Benchmarks workflow runs full samples on both versions when benchmark definitions change or on manual dispatch. It uses the same benchmark definitions and locked dependencies for the candidate and a configurable baseline (the default branch by default). Compare like-for-like environments, dependency versions, input sizes, warm and cold paths; smoke runs are not performance evidence. A manual mutation-audit workflow is available for checking test sensitivity.
