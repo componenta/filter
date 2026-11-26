@@ -18,13 +18,27 @@ final class NumericValueComparator
      */
     public static function compare(mixed $left, mixed $right): ?int
     {
-        $left = self::parse($left);
-        $right = self::parse($right);
+        if (is_int($left) && is_int($right)) {
+            return $left <=> $right;
+        }
+
+        $left = self::normalize($left);
+        $right = self::normalize($right);
 
         if ($left === null || $right === null) {
             return null;
         }
 
+        return self::compareNormalized($left, $right);
+    }
+
+    /**
+     * @param array{-1|0|1, string, array{-1|0|1, string}, array{-1|0|1, string}} $left
+     * @param array{-1|0|1, string, array{-1|0|1, string}, array{-1|0|1, string}} $right
+     * @return -1|0|1
+     */
+    public static function compareNormalized(array $left, array $right): int
+    {
         [$leftSign, $leftDigits, $leftOrder] = $left;
         [$rightSign, $rightDigits, $rightOrder] = $right;
 
@@ -54,8 +68,8 @@ final class NumericValueComparator
      */
     public static function isMultipleOf(mixed $value, mixed $divisor): ?bool
     {
-        $value = self::parse($value);
-        $divisor = self::parse($divisor);
+        $value = self::normalize($value);
+        $divisor = self::normalize($divisor);
 
         if ($value === null || $divisor === null || $divisor[0] === 0) {
             return null;
@@ -105,7 +119,7 @@ final class NumericValueComparator
                 + intdiv(($count % 100) * $integer, 100);
         }
 
-        [, $digits, , $scale] = self::parse($percentage);
+        [, $digits, , $scale] = self::normalize($percentage);
         $left = (string) $count;
         $leftLength = strlen($left);
         $rightLength = strlen($digits);
@@ -135,17 +149,27 @@ final class NumericValueComparator
 
     public static function isValid(mixed $value): bool
     {
-        return self::parse($value) !== null;
+        return is_int($value)
+            || (is_float($value) && is_finite($value))
+            || (is_string($value) && self::matchString($value) !== null);
     }
 
     /**
      * @return array{-1|0|1, string, array{-1|0|1, string}, array{-1|0|1, string}}|null
      */
-    private static function parse(mixed $value): ?array
+    public static function normalize(mixed $value): ?array
     {
         if (is_int($value)) {
-            $number = (string) $value;
-        } elseif (is_float($value)) {
+            if ($value === 0) {
+                return [0, '0', [0, '0'], [0, '0']];
+            }
+
+            $digits = ltrim((string) $value, '-');
+
+            return [$value < 0 ? -1 : 1, $digits, [1, (string) strlen($digits)], [0, '0']];
+        }
+
+        if (is_float($value)) {
             if (!is_finite($value)) {
                 return null;
             }

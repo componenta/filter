@@ -9,17 +9,25 @@ namespace Componenta\Filter;
  */
 final class RangeFilter extends AbstractFilter
 {
+    private readonly array $normalizedMin;
+    private readonly array $normalizedMax;
+
     public function __construct(
         private readonly int|float|string $min,
         private readonly int|float|string $max,
         iterable $iterable = []
     ) {
-        $comparison = NumericValueComparator::compare($min, $max);
+        $normalizedMin = NumericValueComparator::normalize($min);
+        $normalizedMax = NumericValueComparator::normalize($max);
 
-        if ($comparison === null || $comparison > 0) {
+        if ($normalizedMin === null || $normalizedMax === null
+            || NumericValueComparator::compareNormalized($normalizedMin, $normalizedMax) > 0
+        ) {
             throw new \InvalidArgumentException('Bounds must be valid numeric values and min must not exceed max');
         }
 
+        $this->normalizedMin = $normalizedMin;
+        $this->normalizedMax = $normalizedMax;
         parent::__construct($iterable);
     }
 
@@ -45,13 +53,18 @@ final class RangeFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        $minComparison = NumericValueComparator::compare($value, $this->min);
+        if (is_int($value) && is_int($this->min) && is_int($this->max)) {
+            return $value >= $this->min && $value <= $this->max;
+        }
 
-        if ($minComparison === null) {
+        $normalized = NumericValueComparator::normalize($value);
+
+        if ($normalized === null) {
             return false;
         }
 
-        $maxComparison = NumericValueComparator::compare($value, $this->max);
+        $minComparison = NumericValueComparator::compareNormalized($normalized, $this->normalizedMin);
+        $maxComparison = NumericValueComparator::compareNormalized($normalized, $this->normalizedMax);
 
         return $minComparison >= 0 && $maxComparison <= 0;
     }

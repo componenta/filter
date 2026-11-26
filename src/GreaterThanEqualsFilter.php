@@ -9,14 +9,19 @@ namespace Componenta\Filter;
  */
 final class GreaterThanEqualsFilter extends AbstractFilter
 {
+    private readonly array $normalizedThreshold;
+
     public function __construct(
         private readonly int|float|string $threshold,
         iterable $iterable = []
     ) {
-        if (!NumericValueComparator::isValid($threshold)) {
+        $normalized = NumericValueComparator::normalize($threshold);
+
+        if ($normalized === null) {
             throw new \InvalidArgumentException('Threshold must be a valid numeric value');
         }
 
+        $this->normalizedThreshold = $normalized;
         parent::__construct($iterable);
     }
 
@@ -32,8 +37,13 @@ final class GreaterThanEqualsFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        $comparison = NumericValueComparator::compare($value, $this->threshold);
+        if (is_int($value) && is_int($this->threshold)) {
+            return $value >= $this->threshold;
+        }
 
-        return $comparison !== null && $comparison >= 0;
+        $normalized = NumericValueComparator::normalize($value);
+
+        return $normalized !== null
+            && NumericValueComparator::compareNormalized($normalized, $this->normalizedThreshold) >= 0;
     }
 }
