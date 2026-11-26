@@ -26,9 +26,7 @@ final class RandomFilter extends AbstractFilter
         iterable $iterable = [],
         ?Randomizer $randomizer = null,
     ) {
-        if (!is_finite($probability) || $probability < 0.0 || $probability > 1.0) {
-            throw new \InvalidArgumentException('Probability must be a finite number between 0 and 1');
-        }
+        self::assertProbability($probability);
 
         $this->randomizer = $randomizer ?? new Randomizer();
         parent::__construct($iterable);
@@ -41,6 +39,8 @@ final class RandomFilter extends AbstractFilter
 
     public function withProbability(float $probability): static
     {
+        self::assertProbability($probability);
+
         return new self(
             $probability,
             $this->iterable,
@@ -78,6 +78,13 @@ final class RandomFilter extends AbstractFilter
         }
 
         return $this->randomizer->nextFloat() < $this->probability;
+    }
+
+    private static function assertProbability(float $probability): void
+    {
+        if (!is_finite($probability) || $probability < 0.0 || $probability > 1.0) {
+            throw new \InvalidArgumentException('Probability must be a finite number between 0 and 1');
+        }
     }
 
     private static function copyRandomizer(Randomizer $randomizer): Randomizer
