@@ -11,9 +11,11 @@ use Random\Randomizer;
 /**
  * Accepts elements randomly based on probability.
  *
- * Uses an isolated Randomizer by default and never mutates PHP's global
- * mt_rand() state. A Randomizer may be injected for reproducible behavior.
- * Immutable clones preserve independent engine state instead of sharing it.
+ * Uses a private Secure Randomizer by default and never mutates PHP's global
+ * mt_rand() state. An injected Randomizer is a borrowed, stateful collaborator.
+ * Configuration copies use the engine's copying protocol. A custom engine must
+ * implement independent clone/serialization semantics if independent sequences
+ * are required; the filter cannot enforce isolation of external/static state.
  */
 final class RandomFilter extends AbstractFilter
 {
@@ -56,6 +58,10 @@ final class RandomFilter extends AbstractFilter
         return $this->probability;
     }
 
+    /**
+     * Returns the live collaborator, not a snapshot. Drawing from it advances
+     * the same random stream used by this filter.
+     */
     public function getRandomizer(): Randomizer
     {
         return $this->randomizer;
@@ -88,11 +94,11 @@ final class RandomFilter extends AbstractFilter
             throw self::uncopyableEngine($engine);
         }
 
-        if ($reflection->isInternal() || $reflection->hasMethod('__clone')) {
-            return new Randomizer(clone $engine);
-        }
-
         try {
+            if ($reflection->isInternal() || $reflection->hasMethod('__clone')) {
+                return new Randomizer(clone $engine);
+            }
+
             $copy = unserialize(
                 serialize($engine),
                 ['allowed_classes' => true],
