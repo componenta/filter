@@ -17,9 +17,14 @@ final class RecursiveFilter extends AbstractFilter
         private readonly bool $yieldNestedAsArray = false,
         iterable $iterable = [],
         private readonly int $maxDepth = 64,
+        private readonly int $maxAggregateDepth = 64,
     ) {
         if ($maxDepth < 0) {
             throw new \InvalidArgumentException('Maximum recursive filter depth must be non-negative');
+        }
+
+        if ($maxAggregateDepth < 0) {
+            throw new \InvalidArgumentException('Maximum iterator aggregate depth must be non-negative');
         }
 
         parent::__construct($iterable);
@@ -27,17 +32,27 @@ final class RecursiveFilter extends AbstractFilter
 
     public function withFilter(PredicateInterface $filter): static
     {
-        return new self($filter, $this->yieldNestedAsArray, $this->iterable, $this->maxDepth);
+        return new self($filter, $this->yieldNestedAsArray, $this->iterable, $this->maxDepth, $this->maxAggregateDepth);
     }
 
     public function withYieldNestedAsArray(bool $yieldNestedAsArray): static
     {
-        return new self($this->filter, $yieldNestedAsArray, $this->iterable, $this->maxDepth);
+        return new self($this->filter, $yieldNestedAsArray, $this->iterable, $this->maxDepth, $this->maxAggregateDepth);
     }
 
     public function withMaxDepth(int $maxDepth): static
     {
-        return new self($this->filter, $this->yieldNestedAsArray, $this->iterable, $maxDepth);
+        return new self($this->filter, $this->yieldNestedAsArray, $this->iterable, $maxDepth, $this->maxAggregateDepth);
+    }
+
+    public function withMaxAggregateDepth(int $maxAggregateDepth): static
+    {
+        return new self($this->filter, $this->yieldNestedAsArray, $this->iterable, $this->maxDepth, $maxAggregateDepth);
+    }
+
+    public function getMaxAggregateDepth(): int
+    {
+        return $this->maxAggregateDepth;
     }
 
     public function getFilter(): PredicateInterface
@@ -71,10 +86,20 @@ final class RecursiveFilter extends AbstractFilter
     private function iterate(iterable $iterable, int $depth, \SplObjectStorage $active): \Generator
     {
         $trackedObjects = [];
+        $aggregateDepth = 0;
 
         try {
             while ($iterable instanceof \IteratorAggregate) {
                 $this->trackIterableObject($iterable, $active, $trackedObjects);
+
+                if ($aggregateDepth >= $this->maxAggregateDepth) {
+                    throw new \OverflowException(sprintf(
+                        'Maximum iterator aggregate depth of %d exceeded',
+                        $this->maxAggregateDepth,
+                    ));
+                }
+
+                $aggregateDepth++;
                 $iterable = $iterable->getIterator();
             }
 
