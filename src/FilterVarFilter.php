@@ -56,6 +56,16 @@ final class FilterVarFilter extends AbstractFilter
     public function accept(mixed $value, string|int|null $key = null): bool
     {
         $options = $this->options;
+
+        // Callback null results are legitimate. Use the native false failure
+        // sentinel so a null returned by the callback cannot be confused with
+        // rejection before the callback is invoked.
+        if ($this->filter === FILTER_CALLBACK && is_array($options)
+            && (self::flags($options) & FILTER_NULL_ON_FAILURE) !== 0
+        ) {
+            $options['flags'] = self::flags($options) & ~FILTER_NULL_ON_FAILURE;
+        }
+
         $defaultFailureSentinel = self::replaceValidationDefault($this->filter, $options);
         $boolean = $this->filter === FILTER_VALIDATE_BOOLEAN;
         $throwOnFailure = self::hasThrowOnFailure(self::flags($options))
@@ -242,7 +252,7 @@ final class FilterVarFilter extends AbstractFilter
     private static function returnsNullOnFailure(int $filter, int $flags): bool
     {
         return ($flags & FILTER_NULL_ON_FAILURE) !== 0
-            && self::isValidationFilter($filter);
+            && $filter !== FILTER_CALLBACK;
     }
 
     private static function isValidationFilter(int $filter): bool
