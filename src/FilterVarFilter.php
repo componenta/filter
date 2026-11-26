@@ -57,16 +57,16 @@ final class FilterVarFilter extends AbstractFilter
     {
         $options = $this->options;
 
-        // Callback null results are legitimate. Use the native false failure
-        // sentinel so a null returned by the callback cannot be confused with
-        // rejection before the callback is invoked.
-        if ($this->filter === FILTER_CALLBACK && is_array($options)
-            && (self::flags($options) & FILTER_NULL_ON_FAILURE) !== 0
-        ) {
+        if ($this->filter === FILTER_CALLBACK) {
+            // Only a callback's actual false return is a rejection. A
+            // successful callback may itself return an array containing false
+            // or null; those data values are not native filtering failures.
+            $callback = $options['options'];
+            $options['options'] = static fn(mixed $input): bool => $callback($input) !== false;
             $options['flags'] = self::flags($options) & ~FILTER_NULL_ON_FAILURE;
         }
 
-        $defaultFailureSentinel = self::replaceValidationDefault($this->filter, $options);
+        $defaultFailureSentinel = self::replaceNativeDefault($this->filter, $options);
         $boolean = $this->filter === FILTER_VALIDATE_BOOLEAN;
         $throwOnFailure = self::hasThrowOnFailure(self::flags($options))
             && self::isValidationFilter($this->filter);
@@ -216,9 +216,9 @@ final class FilterVarFilter extends AbstractFilter
         };
     }
 
-    private static function replaceValidationDefault(int $filter, array|int &$options): ?object
+    private static function replaceNativeDefault(int $filter, array|int &$options): ?object
     {
-        if (!self::isValidationFilter($filter)
+        if ($filter === FILTER_CALLBACK
             || !is_array($options)
             || !is_array($options['options'] ?? null)
             || !array_key_exists('default', $options['options'])
