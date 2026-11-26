@@ -103,6 +103,21 @@ final class PercentageFilter extends AbstractCollectionFilter
                 + intdiv(($count % 100) * $integer, 100);
         }
 
+        // When the entire rounding-error interval lies strictly inside one
+        // integer bucket, its floor is exact. This is not an epsilon added to
+        // the result: uncertain cases always use the exact decimal path.
+        // The conservative bound covers conversion of count to binary64,
+        // decimal round-trip error, multiplication and division rounding.
+        // The absolute floor of the bound also covers subnormal values.
+        $approximate = ($count * $percentage) / 100.0;
+        $floor = floor($approximate);
+        $fraction = $approximate - $floor;
+        $errorBound = max(1.0, $approximate) * (8.0 * PHP_FLOAT_EPSILON);
+
+        if ($fraction > $errorBound && 1.0 - $fraction > $errorBound) {
+            return (int) $floor;
+        }
+
         [$digits, $decimalPlaces] = self::decimalRatio($percentage);
 
         // Prefer integer arithmetic when both coefficients fit and no
