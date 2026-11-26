@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - CHANGELOG.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: filter-release
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/tests.yml
+
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Publish verified version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -nE 's/^## \[([0-9]+\.[0-9]+\.[0-9]+)\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$/\1/p' CHANGELOG.md | sed -n '1p')
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::No valid release version in CHANGELOG.md"
+            exit 1
+          fi
+          tag="v$version"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists; leaving it unchanged."
+            exit 0
+          fi
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            existing=$(git rev-parse "refs/tags/$tag^{commit}")
+            if [[ "$existing" != "$GITHUB_SHA" ]]; then
+              echo "::error::Existing tag $tag points at a different commit"
+              exit 1
+            fi
+          fi
+          # Extract only the newest version's notes.
+          notes="$RUNNER_TEMP/release-notes.md"
+          awk '/^## \[[0-9]+\.[0-9]+\.[0-9]+\] - / { if (seen) exit; seen=1; next } seen { print }' CHANGELOG.md > "$notes"
+          test -s "$notes"
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$tag — correctness, safety and performance" --notes-file "$notes" --latest
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json tagName,url,isDraft,isPrerelease
