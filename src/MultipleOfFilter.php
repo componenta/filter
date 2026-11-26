@@ -74,6 +74,16 @@ final class MultipleOfFilter extends AbstractFilter
             return false;
         }
 
+        // The tolerance compensates for rounding in the tested float, not
+        // for loss of precision when converting an exact configured divisor.
+        $normalizedFloatDivisor = NumericValueComparator::normalize($divisor);
+
+        if ($normalizedFloatDivisor === null
+            || NumericValueComparator::compareNormalized($normalizedFloatDivisor, $this->normalizedDivisor) !== 0
+        ) {
+            return false;
+        }
+
         $quotient = $value / $divisor;
 
         if (!is_finite($quotient)) {
