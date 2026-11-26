@@ -92,11 +92,11 @@ By default `toArray()` returns a list. With `preserveKeys: true`, later duplicat
 
 `NumericFilter`, `BetweenFilter`, `RangeFilter`, `GreaterThan*`, `LessThan*`, `MultipleOfFilter`, and the parity filters do not collapse numeric strings to `float` unnecessarily.
 
-Large integers, long decimal strings, and scientific notation can therefore be compared without the `2^53` precision loss of IEEE-754 conversion. `NAN` and infinite values are rejected by value-oriented numeric predicates. Actual PHP float inputs keep their native floating-point precision; `MultipleOfFilter` uses a bounded tolerance only when the tested value itself is a float and conversion of the configured divisor to a float retains its normalized decimal value. Numeric strings allow PHP numeric whitespace (space, tab, LF, CR, vertical tab and form feed); null bytes are rejected, including at boundaries. There is no automatic application-level limit on numeric-string size.
+Large integers, long decimal strings, and scientific notation can therefore be compared without the `2^53` precision loss of IEEE-754 conversion. `NAN` and infinite values are rejected by value-oriented numeric predicates. For comparisons and exact divisibility, finite float inputs are interpreted through their shortest round-trip decimal representation, rather than as exact binary fractions; parity of float inputs uses the actual floating-point integer value. `MultipleOfFilter` uses a bounded tolerance only when the tested value itself is a float and conversion of the configured divisor to a float retains its normalized decimal value. Numeric strings allow PHP numeric whitespace (space, tab, LF, CR, vertical tab and form feed); null bytes are rejected, including at boundaries. There is no automatic application-level limit on numeric-string size.
 
 ## Date Ranges
 
-`DateRangeFilter` accepts `DateTimeInterface` or absolute ISO-like date strings. It captures a timezone at construction for local strings, preserves microsecond precision, and does not accept relative expressions such as `tomorrow` or silently normalized impossible dates.
+`DateRangeFilter` accepts `DateTimeInterface` or absolute ISO-like date strings. It captures independent native timezone data and copies date-time bounds at construction. `getTimezone()` returns an independent `DateTimeZone`; changing either the supplied or returned timezone object does not change the filter. `withTimezone()` changes interpretation of local strings without changing the bound instants. The filter preserves microsecond precision and does not accept relative expressions such as `tomorrow` or silently normalized impossible dates.
 
 ```php
 $range = new DateRangeFilter(
