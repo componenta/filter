@@ -15,8 +15,6 @@ namespace Componenta\Filter;
  */
 final class DateRangeFilter extends AbstractFilter
 {
-    private const string ABSOLUTE_DATE_PATTERN = '/^(?<date>\d{4}-\d{2}-\d{2})(?:(?:[ T])(?<time>\d{2}:\d{2}:\d{2})(?<fraction>\.\d{1,6})?(?<offset>Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?)?$/D';
-
     private readonly \DateTimeImmutable $minDate;
     private readonly \DateTimeImmutable $maxDate;
     private readonly \DateTimeZone $timezone;
@@ -116,12 +114,9 @@ final class DateRangeFilter extends AbstractFilter
 
         $value = trim($value, " \t\n\r\v");
 
-        if ($value === '' || preg_match(
-            self::ABSOLUTE_DATE_PATTERN,
-            $value,
-            $matches,
-            PREG_UNMATCHED_AS_NULL,
-        ) !== 1) {
+        $matches = self::matchAbsoluteDate($value);
+
+        if ($matches === null) {
             return null;
         }
 
@@ -146,6 +141,83 @@ final class DateRangeFilter extends AbstractFilter
         }
 
         return $date;
+    }
+
+    /**
+     * Parses the fixed ASCII date/time grammar without depending on PCRE's
+     * application-configured resource limits. Calendar validity is checked
+     * separately by DateTimeImmutable.
+     *
+     * @return array{date: string, time: ?string, fraction: ?string, offset: ?string}|null
+     */
+    private static function matchAbsoluteDate(string $value): ?array
+    {
+        $length = strlen($value);
+
+        if ($length < 10
+            || $value[4] !== '-'
+            || $value[7] !== '-'
+            || strspn($value, '0123456789', 0, 4) !== 4
+            || strspn($value, '0123456789', 5, 2) !== 2
+            || strspn($value, '0123456789', 8, 2) !== 2
+        ) {
+            return null;
+        }
+
+        $date = substr($value, 0, 10);
+        $time = $fraction = $offset = null;
+
+        if ($length === 10) {
+            return compact('date', 'time', 'fraction', 'offset');
+        }
+
+        if ($length < 19
+            || ($value[10] !== 'T' && $value[10] !== ' ')
+            || $value[13] !== ':'
+            || $value[16] !== ':'
+            || strspn($value, '0123456789', 11, 2) !== 2
+            || strspn($value, '0123456789', 14, 2) !== 2
+            || strspn($value, '0123456789', 17, 2) !== 2
+        ) {
+            return null;
+        }
+
+        $time = substr($value, 11, 8);
+        $position = 19;
+
+        if ($position < $length && $value[$position] === '.') {
+            $fractionLength = strspn($value, '0123456789', $position + 1);
+
+            if ($fractionLength < 1 || $fractionLength > 6) {
+                return null;
+            }
+
+            $fraction = substr($value, $position, $fractionLength + 1);
+            $position += $fractionLength + 1;
+        }
+
+        if ($position === $length) {
+            return compact('date', 'time', 'fraction', 'offset');
+        }
+
+        $offset = substr($value, $position);
+
+        if ($offset === 'Z') {
+            return compact('date', 'time', 'fraction', 'offset');
+        }
+
+        if (strlen($offset) !== 6
+            || ($offset[0] !== '+' && $offset[0] !== '-')
+            || $offset[3] !== ':'
+            || strspn($offset, '0123456789', 1, 2) !== 2
+            || strspn($offset, '0123456789', 4, 2) !== 2
+            || (int) substr($offset, 1, 2) > 23
+            || (int) substr($offset, 4, 2) > 59
+        ) {
+            return null;
+        }
+
+        return compact('date', 'time', 'fraction', 'offset');
     }
 
     /** @param array<string, string|null> $matches */
