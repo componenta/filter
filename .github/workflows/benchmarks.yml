@@ -6,6 +6,8 @@ on:
       - '.github/workflows/benchmarks.yml'
       - 'benchmarks/**'
       - 'phpbench.json.dist'
+      - 'src/FilterVarFilter.php'
+      - 'src/PercentageFilter.php'
   workflow_dispatch:
     inputs:
       baseline:

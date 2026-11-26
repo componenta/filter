@@ -37,6 +37,7 @@ final class PredicateBench
     private FilterVarFilter $nativeCallback;
     private FilterVarFilter $nativeCallbackArray;
     private FilterVarFilter $nativeIntegerArray;
+    private FilterVarFilter $nativeIntegerArrayOptions;
     private array $nativeFlatInput;
     private array $nativeNestedInput;
 
@@ -62,6 +63,7 @@ final class PredicateBench
             'options' => static fn(int $value): bool => $value > 0,
         ]);
         $this->nativeIntegerArray = new FilterVarFilter(FILTER_VALIDATE_INT, FILTER_REQUIRE_ARRAY);
+        $this->nativeIntegerArrayOptions = new FilterVarFilter(FILTER_VALIDATE_INT, ['flags' => FILTER_REQUIRE_ARRAY]);
         $this->nativeFlatInput = array_map(strval(...), range(1, 100));
         $this->nativeNestedInput = array_chunk($this->nativeFlatInput, 10);
     }
@@ -152,6 +154,27 @@ final class PredicateBench
     public function benchNativeIntegerNestedArray(): void
     {
         $this->nativeIntegerArray->accept($this->nativeNestedInput);
+    }
+
+    #[Bench\Revs(100)]
+    public function benchNativeIntegerArrayOptions(): void
+    {
+        $this->nativeIntegerArrayOptions->accept($this->nativeFlatInput);
+    }
+
+    #[Bench\Revs(100)]
+    public function benchNativeIntegerReferencedArray(): void
+    {
+        // Build fresh references per revolution. The baseline implementation
+        // transforms the temporary values, so reusing them would change input.
+        $values = $this->nativeFlatInput;
+        $references = [];
+
+        foreach (array_keys($values) as $key) {
+            $references[] = &$values[$key];
+        }
+
+        $this->nativeIntegerArray->accept($references);
     }
 
     public function benchSeededRandom(): void
