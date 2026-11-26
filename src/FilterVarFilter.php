@@ -9,16 +9,27 @@ namespace Componenta\Filter;
  */
 final class FilterVarFilter extends AbstractFilter
 {
+    private readonly array|int $options;
+
     public function __construct(
         private readonly int $filter,
-        private readonly array|int $options = 0,
+        array|int $options = 0,
         iterable $iterable = []
     ) {
         if (!self::isKnownFilter($filter)) {
             throw new \InvalidArgumentException(sprintf('Unknown filter id: %d', $filter));
         }
 
+        if (is_array($options)) {
+            $options = ConfigurationArray::copySlots($options);
+
+            if (is_array($options['options'] ?? null)) {
+                $options['options'] = ConfigurationArray::copySlots($options['options']);
+            }
+        }
+
         self::assertValidOptions($filter, $options);
+        $this->options = $options;
         parent::__construct($iterable);
     }
 

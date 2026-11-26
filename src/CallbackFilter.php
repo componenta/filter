@@ -10,7 +10,7 @@ namespace Componenta\Filter;
 final class CallbackFilter extends AbstractFilter
 {
     /** @var callable(mixed, string|int|null): bool */
-    private $callback;
+    private readonly \Closure $callback;
 
     /**
      * @param callable(mixed, string|int|null): bool $callback
@@ -19,7 +19,7 @@ final class CallbackFilter extends AbstractFilter
         callable $callback,
         iterable $iterable = []
     ) {
-        $this->callback = $callback;
+        $this->callback = \Closure::fromCallable($callback);
         parent::__construct($iterable);
     }
 
