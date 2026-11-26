@@ -11,6 +11,7 @@ composer require componenta/filter
 ## Requirements
 
 - PHP 8.4+
+- PHP extensions `ctype` and `filter`
 - `componenta/arrayable`
 - `componenta/iterator`
 
@@ -35,7 +36,7 @@ $filter->accept('value'); // true
 $filter->toArray();       // ['one', 'three']
 ```
 
-String-oriented predicates accept only `string` and `Stringable` values. Scalars such as integers and booleans are not silently cast to strings.
+String-oriented predicates accept only `string` and `Stringable` values. Scalars such as integers and booleans are not silently cast to strings. Length predicates count bytes (not Unicode code points or grapheme clusters); case-insensitive string and extension predicates use ASCII case folding. Calling a Stringable object's conversion may execute user code.
 
 ## Pure Predicates and Composition
 
@@ -81,13 +82,17 @@ $filter = new MergingFilter(
 $filter->toArray(); // [1, 'a', 'b', 1, 2]
 ```
 
-`MergingFilter::withIterable()` uses `ReplayableIterator` to fan out one-shot sources lazily. Binding a generator does not consume it immediately, and each inner filter gets an independent replay cursor.
+- `PercentageFilter` keeps the first floor(count × percentage / 100) elements, using the shortest round-trip decimal representation of the supplied percentage. Arrays and consistently countable sources need not be fully consumed; a generic iterable is buffered for intermediate percentages. A 0% filter does not consume the source; a 100% filter streams it. Intermediate percentages require a finite source.
+- `UniqueFilter` uses strict PHP equality, preserves first occurrences and retains separate traversal state. Scalars and object identity use indexes; complex values fall back to strict comparisons. Repeated NaN values remain distinct; signed floating-point zeros compare equal. Memory grows with the number of distinct values.
+- `MergingFilter::withIterable()` defers opening iterator aggregates and rewinding iterators until the first traversal. Each inner filter receives an independent cursor over a shared replay cache. The cache retains visited elements, and aggregate wrapper chains are limited to 64 levels; exhaustion raises `OverflowException`. A merge over an infinite source cannot finish its first exhaustive traversal.
+
+By default `toArray()` returns a list. With `preserveKeys: true`, later duplicate PHP array keys overwrite earlier values, numeric string keys follow PHP's array-key rules, and null iterator keys become empty strings without a deprecation. Raw iterators preserve their keys. Materialization with keys copies top-level value slots; arbitrary nested values and object identities are not deep-copied.
 
 ## Exact Numeric Predicates
 
 `NumericFilter`, `BetweenFilter`, `RangeFilter`, `GreaterThan*`, `LessThan*`, `MultipleOfFilter`, and the parity filters do not collapse numeric strings to `float` unnecessarily.
 
-Large integers, long decimal strings, and scientific notation can therefore be compared without the `2^53` precision loss of IEEE-754 conversion. `NAN` and infinite values are rejected by value-oriented numeric predicates. Actual PHP float inputs keep their native floating-point precision; `MultipleOfFilter` uses a bounded tolerance only when the tested value itself is a float.
+Large integers, long decimal strings, and scientific notation can therefore be compared without the `2^53` precision loss of IEEE-754 conversion. `NAN` and infinite values are rejected by value-oriented numeric predicates. Actual PHP float inputs keep their native floating-point precision; `MultipleOfFilter` uses a bounded tolerance only when the tested value itself is a float. Numeric strings allow PHP numeric whitespace (space, tab, LF, CR, vertical tab and form feed); null bytes are rejected, including at boundaries. There is no automatic application-level limit on numeric-string size.
 
 ## Date Ranges
 
@@ -103,19 +108,25 @@ $range = new DateRangeFilter(
 
 ## Recursive Filtering
 
-`RecursiveFilter` detects iterable-object cycles and also enforces `maxDepth` (default `64`) so recursive arrays cannot recurse indefinitely.
+`RecursiveFilter` detects iterable-object cycles and enforces `maxDepth` (default `64`) for nested collection values. Independently, `maxAggregateDepth` (default `64`) bounds successive `IteratorAggregate::getIterator()` wrappers at each collection level, including the root. Exceeding either limit throws `OverflowException`. A zero collection-depth limit still permits a flat source wrapped by aggregates; a zero aggregate-depth limit allows no aggregate wrappers. Identity cycles throw `RuntimeException`.
 
 ```php
-$filter = new RecursiveFilter($predicate, maxDepth: 32);
+$filter = new RecursiveFilter($predicate, maxDepth: 32, maxAggregateDepth: 16);
 ```
 
 ## Random Filtering
 
-`RandomFilter` uses an isolated `Random\Randomizer` instead of the process-global `mt_rand()` state. Inject a `Randomizer` when deterministic seeded behavior is needed.
+`RandomFilter` creates a private secure `Random\Randomizer` by default instead of consuming the process-global `mt_rand()` state. An explicitly injected randomizer is a borrowed, stateful collaborator; `getRandomizer()` returns that live stream, and external draws advance it. Configuration copies use a separate engine instance where supported. Custom engines must provide independent clone or serialization behavior if independent state is required; external or static state cannot be isolated by the filter. An engine copy failure throws `LogicException`. Probabilities of 0 and 1 do not consume random state.
 
 ## Validation
 
 Invalid configuration is rejected early with `InvalidArgumentException` where safe execution would otherwise be impossible. This includes invalid numeric/date ranges, regular expressions, `filter_var()` IDs/options, probabilities, percentages, and typed class/string/key lists.
+
+## Ownership and security boundaries
+
+The `with*` methods do not mutate the receiver's configuration. Validated string/key lists own their scalar entries; arbitrary configuration lists own their top-level slots while retaining nested values and object identities. Native filter options own the top-level options and native option/callback-array slots. Iterables, mutable objects, resources, custom predicates and callback target state are borrowed collaborators, not deep snapshots. A one-shot source is not automatically replayable except when explicitly wrapped (as by `MergingFilter`).
+
+Predicates are selection mechanisms, not authorization or sanitization boundaries. A negative predicate negates any false result, including an unsupported input type. Filesystem predicates may access registered stream wrappers or reveal existence; restrict paths, schemes and authorization separately. A filename extension does not establish MIME type or safe content. Regular expressions should come from trusted configuration and have appropriate PCRE resource limits; a runtime PCRE matching failure is not a successful match. Sanitizing native filters do not return transformed values through this predicate API and do not establish input validity. A native failure sentinel is rejected, including null failures; legitimate false boolean validation results and legitimate null callback results are accepted. Treat executable callbacks, class names that invoke autoloaders, and Stringable/reflective collaborators as trusted code. Bound untrusted collection sizes and input lengths at the application boundary.
 
 ## Breaking Changes from 1.x
 
@@ -134,6 +145,7 @@ Invalid configuration is rejected early with `InvalidArgumentException` where sa
 ```bash
 composer install
 composer test
+composer benchmark
 ```
 
-CI validates Composer metadata, lints all PHP sources and tests, and runs Pest on PHP 8.4 and 8.5. A manual mutation-audit workflow is available for checking test sensitivity.
+CI validates Composer metadata, lints PHP sources, tests and benchmarks, and runs Pest on PHP 8.4 and 8.5 in normal, seeded random and reverse order. PHPBench subjects are smoke-tested on PHP 8.4. The manual Benchmarks workflow runs full samples on both versions. Compare like-for-like environments, dependency versions, input sizes, warm and cold paths; smoke runs are not performance evidence. A manual mutation-audit workflow is available for checking test sensitivity.
