@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Componenta\Filter;
 
-use Componenta\Stdlib\ReplayableIterator;
-
 /**
  * Concatenates results from multiple collection filters.
  *
@@ -61,7 +59,7 @@ class MergingFilter implements CollectionFilterInterface
     {
         $source = is_array($iterable)
             ? $iterable
-            : self::makeReplayable($iterable);
+            : new ReplayableSource($iterable);
 
         $copy = clone $this;
         $copy->filters = array_map(
@@ -75,21 +73,5 @@ class MergingFilter implements CollectionFilterInterface
     public function toArray(bool $preserveKeys = false): array
     {
         return iterator_to_array($this->getIterator(), $preserveKeys);
-    }
-
-    private static function makeReplayable(iterable $iterable): \IteratorAggregate
-    {
-        $replayable = new ReplayableIterator($iterable);
-
-        return new class($replayable) implements \IteratorAggregate {
-            public function __construct(private readonly ReplayableIterator $replayable)
-            {
-            }
-
-            public function getIterator(): \Traversable
-            {
-                return $this->replayable->cursor();
-            }
-        };
     }
 }
