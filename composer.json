@@ -11,7 +11,8 @@
         "componenta/iterator": "^1.1.0"
     },
     "require-dev": {
-        "pestphp/pest": "^4.0"
+        "pestphp/pest": "^4.0",
+        "phpbench/phpbench": "^1.7"
     },
     "autoload": {
         "psr-4": {
@@ -19,7 +20,8 @@
         }
     },
     "scripts": {
-        "test": "pest"
+        "test": "pest",
+        "benchmark": "phpbench run --report=aggregate"
     },
     "config": {
         "allow-plugins": {
