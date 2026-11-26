@@ -81,6 +81,16 @@ final class CollectionBench
         $this->percentage->toArray();
     }
 
+    public function benchPercentageInteger(): void
+    {
+        (new PercentageFilter(29, $this->values))->toArray();
+    }
+
+    public function benchPercentageHighPrecision(): void
+    {
+        (new PercentageFilter(29.512345678901234, $this->values))->toArray();
+    }
+
     public function benchPercentageGenerator(): void
     {
         (new PercentageFilter(29.5, self::generator($this->values)))->toArray();

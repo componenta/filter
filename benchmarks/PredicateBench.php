@@ -8,6 +8,7 @@ use Componenta\Filter\BetweenFilter;
 use Componenta\Filter\ChainableFilter;
 use Componenta\Filter\DateRangeFilter;
 use Componenta\Filter\GreaterThanFilter;
+use Componenta\Filter\FilterVarFilter;
 use Componenta\Filter\IntFilter;
 use Componenta\Filter\MultipleOfFilter;
 use Componenta\Filter\RandomFilter;
@@ -32,6 +33,9 @@ final class PredicateBench
     private RegexFilter $regex;
     private DateRangeFilter $date;
     private RandomFilter $random;
+    private FilterVarFilter $nativeInt;
+    private FilterVarFilter $nativeCallback;
+    private FilterVarFilter $nativeCallbackArray;
 
     public function setUp(): void
     {
@@ -46,6 +50,14 @@ final class PredicateBench
         $this->regex = new RegexFilter('/^[a-z]+[0-9]+$/D');
         $this->date = new DateRangeFilter('2026-01-01', '2026-12-31', timezone: new \DateTimeZone('UTC'));
         $this->random = new RandomFilter(randomizer: new Randomizer(new Mt19937(42)));
+        $this->nativeInt = new FilterVarFilter(FILTER_VALIDATE_INT);
+        $this->nativeCallback = new FilterVarFilter(FILTER_CALLBACK, [
+            'options' => static fn(int $value): bool => $value > 0,
+        ]);
+        $this->nativeCallbackArray = new FilterVarFilter(FILTER_CALLBACK, [
+            'flags' => FILTER_REQUIRE_ARRAY,
+            'options' => static fn(int $value): bool => $value > 0,
+        ]);
     }
 
     public function benchIntPredicate(): void
@@ -107,6 +119,21 @@ final class PredicateBench
     public function benchDate(): void
     {
         $this->date->accept('2026-06-01T12:00:00.123456Z');
+    }
+
+    public function benchNativeInt(): void
+    {
+        $this->nativeInt->accept('42');
+    }
+
+    public function benchNativeCallback(): void
+    {
+        $this->nativeCallback->accept('42');
+    }
+
+    public function benchNativeCallbackArray(): void
+    {
+        $this->nativeCallbackArray->accept(['42', ['12', '7'], '15']);
     }
 
     public function benchSeededRandom(): void

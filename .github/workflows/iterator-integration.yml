@@ -4,6 +4,9 @@ on:
   push:
     paths:
       - '.github/workflows/iterator-integration.yml'
+      - 'src/MergingFilter.php'
+      - 'src/ReplayableSource.php'
+      - 'tests/IteratorAggregateLimitBoundaryTest.php'
   workflow_dispatch:
     inputs:
       iterator_ref:
