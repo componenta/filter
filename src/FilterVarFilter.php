@@ -58,12 +58,20 @@ final class FilterVarFilter extends AbstractFilter
         $options = $this->options;
 
         if ($this->filter === FILTER_CALLBACK) {
-            // Only a callback's actual false return is a rejection. A
-            // successful callback may itself return an array containing false
-            // or null; those data values are not native filtering failures.
-            $callback = $options['options'];
-            $options['options'] = static fn(mixed $input): bool => $callback($input) !== false;
-            $options['flags'] = self::flags($options) & ~FILTER_NULL_ON_FAILURE;
+            $flags = self::flags($options);
+            $options['flags'] = $flags & ~FILTER_NULL_ON_FAILURE;
+
+            if (($flags & (FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY)) !== 0) {
+                // Only a callback's actual false return is a rejection, not
+                // a false value inside its returned data. Invoke the original
+                // through filter_var to retain native scalar type coercion.
+                $callback = $options['options'];
+                $options['options'] = static fn(mixed $input): bool => filter_var(
+                    $input,
+                    FILTER_CALLBACK,
+                    ['options' => $callback],
+                ) !== false;
+            }
         }
 
         $defaultFailureSentinel = self::replaceNativeDefault($this->filter, $options);

@@ -61,3 +61,23 @@ it('does not hide exceptions raised by a configured callback', function (): void
 
     expect(fn() => $filter->accept(['value']))->toThrow(DomainException::class, 'callback failure');
 });
+
+it('preserves native callback argument coercion and input order in array modes', function (): void {
+    $seen = [];
+    $callback = static function (int $value) use (&$seen): array|false {
+        $seen[] = $value;
+
+        return $value === 42 ? [false] : false;
+    };
+    $scalar = new FilterVarFilter(FILTER_CALLBACK, ['options' => $callback]);
+    $array = $scalar->withOptions(['flags' => FILTER_REQUIRE_ARRAY, 'options' => $callback]);
+    $forced = $scalar->withOptions(['flags' => FILTER_FORCE_ARRAY, 'options' => $callback]);
+
+    expect($scalar->accept('42'))->toBeTrue()
+        ->and($array->accept(['42', ['42']]))->toBeTrue()
+        ->and($forced->accept('42'))->toBeTrue()
+        ->and($array->accept(['42', '43']))->toBeFalse()
+        ->and($seen)->toBe([42, 42, 42, 42, 42, 43]);
+
+    expect(fn() => $array->accept(['not-an-int']))->toThrow(TypeError::class);
+});
