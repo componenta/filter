@@ -40,6 +40,14 @@ final class MembershipBench
         $this->keys = new KeyInFilter($this->values);
         $this->intersect = new ArrayIntersectFilter($this->values);
         $this->diff = new ArrayDiffFilter($this->values);
+
+        // Exercise repeated checks before measuring the hot path.
+        $needle = 'ITEM-' . $params['size'];
+
+        for ($i = 0; $i < 2; $i++) {
+            $this->strings->accept($needle);
+            $this->extensions->accept('file.' . $needle);
+        }
     }
 
     public function benchStringMatchHot(array $params): void

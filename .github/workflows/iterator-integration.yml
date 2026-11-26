@@ -1,0 +1,48 @@
+name: Iterator Integration
+
+on:
+  push:
+    paths:
+      - '.github/workflows/iterator-integration.yml'
+  workflow_dispatch:
+    inputs:
+      iterator_ref:
+        description: 'Iterator commit SHA to integrate'
+        required: true
+        default: '005f152da3598c84f96121f72c9f9d92860697fd'
+        type: string
+
+jobs:
+  integration:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: componenta/iterator
+          ref: ${{ inputs.iterator_ref || '005f152da3598c84f96121f72c9f9d92860697fd' }}
+          path: iterator-under-test
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+      - name: Install with pinned iterator source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C iterator-under-test rev-parse HEAD
+          composer config repositories.iterator '{"type":"path","url":"iterator-under-test","options":{"symlink":false,"versions":{"componenta/iterator":"1.1.0"}}}'
+          composer update --no-interaction --prefer-dist
+          composer show componenta/iterator
+      - run: composer test
+      - run: ./vendor/bin/pest --order-by=random --random-order-seed=20260912
+      - run: ./vendor/bin/pest --reverse-order

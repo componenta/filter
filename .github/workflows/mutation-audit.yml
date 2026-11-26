@@ -1,6 +1,9 @@
 name: Mutation Audit
 
 on:
+  push:
+    paths:
+      - '.github/workflows/mutation-audit.yml'
   workflow_dispatch:
 
 jobs:
