@@ -9,12 +9,14 @@ namespace Componenta\Filter;
  */
 final class StringEqualsAnyFilter extends AbstractFilter
 {
+    private readonly array $allowed;
+
     public function __construct(
-        private readonly array $allowed,
+        array $allowed,
         private readonly bool $caseSensitive = true,
         iterable $iterable = []
     ) {
-        StringList::assert($allowed, 'allowed');
+        $this->allowed = StringList::normalize($allowed, 'allowed');
         parent::__construct($iterable);
     }
 

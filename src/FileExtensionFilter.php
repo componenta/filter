@@ -9,12 +9,14 @@ namespace Componenta\Filter;
  */
 final class FileExtensionFilter extends AbstractFilter
 {
+    private readonly array $allowedExtensions;
+
     public function __construct(
-        private readonly array $allowedExtensions,
+        array $allowedExtensions,
         private readonly bool $caseSensitive = false,
         iterable $iterable = []
     ) {
-        StringList::assert($allowedExtensions, 'allowedExtensions');
+        $this->allowedExtensions = StringList::normalize($allowedExtensions, 'allowedExtensions');
         parent::__construct($iterable);
     }
 

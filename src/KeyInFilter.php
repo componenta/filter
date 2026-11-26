@@ -9,11 +9,13 @@ namespace Componenta\Filter;
  */
 final class KeyInFilter extends AbstractFilter
 {
+    private readonly array $allowedKeys;
+
     public function __construct(
-        private readonly array $allowedKeys,
+        array $allowedKeys,
         iterable $iterable = []
     ) {
-        KeyList::assert($allowedKeys, 'allowedKeys');
+        $this->allowedKeys = KeyList::normalize($allowedKeys, 'allowedKeys');
         parent::__construct($iterable);
     }
 

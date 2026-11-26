@@ -11,8 +11,10 @@ final class StringList
     {
     }
 
-    public static function assert(array $values, string $argument): void
+    public static function normalize(array $values, string $argument): array
     {
+        $normalized = [];
+
         foreach ($values as $key => $value) {
             if (!is_string($value)) {
                 throw new \InvalidArgumentException(sprintf(
@@ -22,6 +24,10 @@ final class StringList
                     get_debug_type($value),
                 ));
             }
+
+            $normalized[$key] = $value;
         }
+
+        return $normalized;
     }
 }

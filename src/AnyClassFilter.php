@@ -9,11 +9,13 @@ namespace Componenta\Filter;
  */
 final class AnyClassFilter extends AbstractFilter
 {
+    private readonly array $allowedClasses;
+
     public function __construct(
-        private readonly array $allowedClasses,
+        array $allowedClasses,
         iterable $iterable = []
     ) {
-        StringList::assert($allowedClasses, 'allowedClasses');
+        $this->allowedClasses = StringList::normalize($allowedClasses, 'allowedClasses');
         parent::__construct($iterable);
     }
 

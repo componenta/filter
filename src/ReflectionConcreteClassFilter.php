@@ -9,11 +9,13 @@ namespace Componenta\Filter;
  */
 final class ReflectionConcreteClassFilter extends AbstractFilter
 {
+    private readonly array $allowedClassNames;
+
     public function __construct(
-        private readonly array $allowedClassNames,
+        array $allowedClassNames,
         iterable $iterable = []
     ) {
-        StringList::assert($allowedClassNames, 'allowedClassNames');
+        $this->allowedClassNames = StringList::normalize($allowedClassNames, 'allowedClassNames');
         parent::__construct($iterable);
     }
 

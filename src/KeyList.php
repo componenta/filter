@@ -11,8 +11,10 @@ final class KeyList
     {
     }
 
-    public static function assert(array $values, string $argument): void
+    public static function normalize(array $values, string $argument): array
     {
+        $normalized = [];
+
         foreach ($values as $index => $value) {
             if (!is_string($value) && !is_int($value) && $value !== null) {
                 throw new \InvalidArgumentException(sprintf(
@@ -22,6 +24,10 @@ final class KeyList
                     get_debug_type($value),
                 ));
             }
+
+            $normalized[$index] = $value;
         }
+
+        return $normalized;
     }
 }

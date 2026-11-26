@@ -9,11 +9,13 @@ namespace Componenta\Filter;
  */
 final class KeyExcludeFilter extends AbstractFilter
 {
+    private readonly array $excludedKeys;
+
     public function __construct(
-        private readonly array $excludedKeys,
+        array $excludedKeys,
         iterable $iterable = []
     ) {
-        KeyList::assert($excludedKeys, 'excludedKeys');
+        $this->excludedKeys = KeyList::normalize($excludedKeys, 'excludedKeys');
         parent::__construct($iterable);
     }
 
