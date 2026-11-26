@@ -46,7 +46,7 @@ final class PercentageFilter extends AbstractCollectionFilter
         }
 
         if (is_array($this->iterable) || $this->iterable instanceof \Countable) {
-            $allowedCount = (int) floor(count($this->iterable) * ($this->percentage / 100));
+            $allowedCount = NumericValueComparator::percentageCount(count($this->iterable), $this->percentage);
 
             if ($allowedCount === 0) {
                 return;
@@ -71,7 +71,7 @@ final class PercentageFilter extends AbstractCollectionFilter
             $items[] = [$key, $value];
         }
 
-        $allowedCount = floor(count($items) * ($this->percentage / 100));
+        $allowedCount = NumericValueComparator::percentageCount(count($items), $this->percentage);
 
         for ($i = 0; $i < $allowedCount; $i++) {
             [$key, $value] = $items[$i];

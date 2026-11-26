@@ -91,6 +91,48 @@ final class NumericValueComparator
         return self::compareSignedInteger($valueScale, $minimumValueScale) >= 0;
     }
 
+    /**
+     * Floors count * percentage / 100 using the shortest decimal representation
+     * of the finite float, without rounding a near-boundary value up or down.
+     * The caller guarantees 0 <= percentage <= 100 and a non-negative count.
+     */
+    public static function percentageCount(int $count, float $percentage): int
+    {
+        if ($percentage === floor($percentage)) {
+            $integer = (int) $percentage;
+
+            return intdiv($count, 100) * $integer
+                + intdiv(($count % 100) * $integer, 100);
+        }
+
+        [, $digits, , $scale] = self::parse($percentage);
+        $left = (string) $count;
+        $leftLength = strlen($left);
+        $rightLength = strlen($digits);
+        $product = array_fill(0, $leftLength + $rightLength, 0);
+
+        for ($i = $leftLength - 1; $i >= 0; $i--) {
+            for ($j = $rightLength - 1; $j >= 0; $j--) {
+                $product[$i + $j + 1] += (ord($left[$i]) - 48) * (ord($digits[$j]) - 48);
+            }
+        }
+
+        for ($i = count($product) - 1; $i > 0; $i--) {
+            $product[$i - 1] += intdiv($product[$i], 10);
+            $product[$i] %= 10;
+        }
+
+        $number = ltrim(implode('', $product), '0');
+        $shift = $scale[0] * (int) $scale[1] - 2;
+        $length = strlen($number) + $shift;
+
+        if ($length <= 0 || $number === '') {
+            return 0;
+        }
+
+        return (int) ($shift < 0 ? substr($number, 0, $length) : $number . str_repeat('0', $shift));
+    }
+
     public static function isValid(mixed $value): bool
     {
         return self::parse($value) !== null;
