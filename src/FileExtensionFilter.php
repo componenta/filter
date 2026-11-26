@@ -10,8 +10,9 @@ namespace Componenta\Filter;
 final class FileExtensionFilter extends AbstractFilter
 {
     private readonly array $allowedExtensions;
-    /** @var array<string, true> */
-    private readonly array $index;
+    /** @var array<string, true>|null */
+    private ?array $index = null;
+    private bool $compared = false;
 
     public function __construct(
         array $allowedExtensions,
@@ -19,13 +20,6 @@ final class FileExtensionFilter extends AbstractFilter
         iterable $iterable = []
     ) {
         $this->allowedExtensions = StringList::normalize($allowedExtensions, 'allowedExtensions');
-        $index = [];
-
-        foreach ($this->allowedExtensions as $value) {
-            $index['s:' . ($caseSensitive ? $value : strtolower($value))] = true;
-        }
-
-        $this->index = $index;
         parent::__construct($iterable);
     }
 
@@ -61,6 +55,32 @@ final class FileExtensionFilter extends AbstractFilter
 
         if ($extension === '') {
             return false;
+        }
+
+        if ($this->index === null) {
+            if (!$this->compared) {
+                $this->compared = true;
+
+                if ($this->caseSensitive) {
+                    return in_array($extension, $this->allowedExtensions, true);
+                }
+
+                foreach ($this->allowedExtensions as $candidate) {
+                    if (strcasecmp($candidate, $extension) === 0) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            $index = [];
+
+            foreach ($this->allowedExtensions as $candidate) {
+                $index['s:' . ($this->caseSensitive ? $candidate : strtolower($candidate))] = true;
+            }
+
+            $this->index = $index;
         }
 
         return isset($this->index['s:' . ($this->caseSensitive ? $extension : strtolower($extension))]);

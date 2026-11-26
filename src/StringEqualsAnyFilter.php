@@ -10,8 +10,9 @@ namespace Componenta\Filter;
 final class StringEqualsAnyFilter extends AbstractFilter
 {
     private readonly array $allowed;
-    /** @var array<string, true> */
-    private readonly array $index;
+    /** @var array<string, true>|null */
+    private ?array $index = null;
+    private bool $compared = false;
 
     public function __construct(
         array $allowed,
@@ -19,13 +20,6 @@ final class StringEqualsAnyFilter extends AbstractFilter
         iterable $iterable = []
     ) {
         $this->allowed = StringList::normalize($allowed, 'allowed');
-        $index = [];
-
-        foreach ($this->allowed as $value) {
-            $index['s:' . ($caseSensitive ? $value : strtolower($value))] = true;
-        }
-
-        $this->index = $index;
         parent::__construct($iterable);
     }
 
@@ -55,6 +49,32 @@ final class StringEqualsAnyFilter extends AbstractFilter
 
         if ($stringValue === null) {
             return false;
+        }
+
+        if ($this->index === null) {
+            if (!$this->compared) {
+                $this->compared = true;
+
+                if ($this->caseSensitive) {
+                    return in_array($stringValue, $this->allowed, true);
+                }
+
+                foreach ($this->allowed as $candidate) {
+                    if (strcasecmp($candidate, $stringValue) === 0) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            $index = [];
+
+            foreach ($this->allowed as $candidate) {
+                $index['s:' . ($this->caseSensitive ? $candidate : strtolower($candidate))] = true;
+            }
+
+            $this->index = $index;
         }
 
         return isset($this->index['s:' . ($this->caseSensitive ? $stringValue : strtolower($stringValue))]);
