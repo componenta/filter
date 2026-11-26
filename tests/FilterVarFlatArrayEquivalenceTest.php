@@ -27,10 +27,35 @@ it('agrees with native scalar evaluation for detached flat arrays across flags-o
 
             foreach ($values as $value) {
                 $reference = $value;
-                $expected = filter_var($value, $id, $scalarFlags) !== $failure;
+                $diagnostics = [];
+                set_error_handler(static function (int $severity, string $message) use (&$diagnostics): bool {
+                    $diagnostics[] = [$severity, $message];
 
-                expect($required->accept([&$reference, &$reference]))->toBe($expected, $name)
-                    ->and($generic->accept([&$reference, &$reference]))->toBe($expected, $name)
+                    return true;
+                });
+
+                try {
+                    $expected = filter_var($value, $id, $scalarFlags) !== $failure;
+                    $nativeDiagnostics = $diagnostics;
+                    $diagnostics = [];
+                    filter_var($value, $id, $scalarFlags);
+                    $nativeDiagnostics = [...$nativeDiagnostics, ...$diagnostics];
+
+                    $diagnostics = [];
+                    $fastResult = $required->accept([&$reference, &$reference]);
+                    $fastDiagnostics = $diagnostics;
+
+                    $diagnostics = [];
+                    $genericResult = $generic->accept([&$reference, &$reference]);
+                    $genericDiagnostics = $diagnostics;
+                } finally {
+                    restore_error_handler();
+                }
+
+                expect($fastResult)->toBe($expected, $name)
+                    ->and($genericResult)->toBe($expected, $name)
+                    ->and($fastDiagnostics)->toBe($nativeDiagnostics, $name)
+                    ->and($genericDiagnostics)->toBe($nativeDiagnostics, $name)
                     ->and(get_debug_type($reference))->toBe(get_debug_type($value));
 
                 if (is_float($value) && is_nan($value)) {
@@ -106,4 +131,52 @@ it('preserves FILTER_THROW_ON_FAILURE for flat arrays on PHP 8.5', function (): 
         ->and($invalid)->toBe('bad')
         ->and($boolean->accept(['false', 'true', false]))->toBeTrue()
         ->and($boolean->accept(['false', 'invalid']))->toBeFalse();
+});
+
+it('preserves warning handler effects on later referenced input slots', function (): void {
+    $calls = 0;
+    $later = 'bad';
+    $replacement = new class($calls) implements Stringable {
+        private int $calls;
+
+        public function __construct(int &$calls)
+        {
+            $this->calls = &$calls;
+        }
+
+        public function __toString(): string
+        {
+            $this->calls++;
+
+            return '42';
+        }
+    };
+    $warnings = 0;
+    set_error_handler(static function () use (&$warnings, &$later, $replacement): bool {
+        $warnings++;
+        $later = $replacement;
+
+        return true;
+    });
+
+    try {
+        filter_var(NAN, FILTER_VALIDATE_INT);
+        $nativeWarnings = $warnings;
+
+        $later = 'bad';
+        $warnings = 0;
+        $filter = new FilterVarFilter(FILTER_VALIDATE_INT, FILTER_REQUIRE_ARRAY);
+
+        expect($filter->accept([NAN, &$later]))->toBeFalse()
+            ->and($warnings)->toBe($nativeWarnings)
+            ->and($calls)->toBe($nativeWarnings > 0 ? 1 : 0);
+
+        if ($nativeWarnings > 0) {
+            expect($later)->toBe($replacement);
+        } else {
+            expect($later)->toBe('bad');
+        }
+    } finally {
+        restore_error_handler();
+    }
 });

@@ -142,9 +142,13 @@ final class FilterVarFilter extends AbstractFilter
         bool $throwOnFailure,
         bool $nullOnFailure,
     ): bool {
-        // Flags-only native filters with flat scalar input cannot invoke a
-        // callback or Stringable. Detach the slots before native filtering.
-        if (is_int($options)) {
+        // Only batch flags-only numeric and boolean validation. Other filters
+        // may depend on runtime configuration, e.g. the default charset.
+        if (is_int($options) && in_array($this->filter, [
+            FILTER_VALIDATE_INT,
+            FILTER_VALIDATE_FLOAT,
+            FILTER_VALIDATE_BOOLEAN,
+        ], true)) {
             $flatResult = $this->acceptFlatScalars($values, $options, $throwOnFailure, $nullOnFailure);
 
             if ($flatResult !== null) {
@@ -220,7 +224,11 @@ final class FilterVarFilter extends AbstractFilter
         $detached = [];
 
         foreach ($values as $value) {
-            if ($value !== null && !is_scalar($value)) {
+            // PHP 8.5 can warn when converting non-finite floats to strings.
+            // A caller's warning handler may change a later referenced slot.
+            if (($value !== null && !is_scalar($value))
+                || (is_float($value) && !is_finite($value))
+            ) {
                 return null;
             }
 
