@@ -27,6 +27,10 @@ final class ReplayableSource implements \IteratorAggregate
             throw $this->failure;
         }
 
+        if ($this->initializing) {
+            throw new \LogicException('Replay source initialization is already in progress');
+        }
+
         if ($this->replayable === null) {
             $this->initialize();
         }
@@ -77,12 +81,15 @@ final class ReplayableSource implements \IteratorAggregate
             if ($seen->offsetExists($source)) {
                 throw new \RuntimeException('IteratorAggregate cycle detected');
             }
-             if (count($seen) >= 64) {
+
+            if (count($seen) >= 64) {
                 throw new \OverflowException('Maximum replay source aggregate depth of 64 exceeded');
             }
-             $seen->offsetSet($source, null);
+
+            $seen->offsetSet($source, null);
             $source = $source->getIterator();
         }
-         return new ReplayableIterator($source);
+
+        return new ReplayableIterator($source);
     }
 }

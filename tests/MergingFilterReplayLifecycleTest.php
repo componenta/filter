@@ -68,3 +68,27 @@ it('replays a failure while releasing a successfully opened aggregate', function
     expect(fn() => $filter->toArray())->toThrow(LogicException::class, 'Release failed')
         ->and(fn() => $filter->toArray())->toThrow(LogicException::class, 'Release failed');
 });
+
+it('rejects reentrant cursor reads while the aggregate is being opened', function (): void {
+    $source = new class implements IteratorAggregate {
+        public ?MergingFilter $filter = null;
+        public bool $reentrantRejected = false;
+
+        public function getIterator(): Traversable
+        {
+            try {
+                $this->filter->toArray();
+            } catch (LogicException $exception) {
+                $this->reentrantRejected = true;
+            }
+
+            return new ArrayIterator([1, 2]);
+        }
+    };
+    $filter = (new MergingFilter(new IntFilter()))->withIterable($source);
+    $source->filter = $filter;
+
+    expect($filter->toArray())->toBe([1, 2])
+        ->and($source->reentrantRejected)->toBeTrue()
+        ->and($filter->toArray())->toBe([1, 2]);
+});
