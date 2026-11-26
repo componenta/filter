@@ -72,6 +72,6 @@ class MergingFilter implements CollectionFilterInterface
 
     public function toArray(bool $preserveKeys = false): array
     {
-        return iterator_to_array($this->getIterator(), $preserveKeys);
+        return CollectionArray::from($this->getIterator(), $preserveKeys);
     }
 }
