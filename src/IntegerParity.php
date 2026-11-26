@@ -36,14 +36,9 @@ final class IntegerParity
 
     private static function ofNumericString(string $value): ?int
     {
-        $value = trim($value);
+        $matches = NumericValueComparator::matchString($value);
 
-        if (preg_match(
-            '/^[+-]?(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/D',
-            $value,
-            $matches,
-            PREG_UNMATCHED_AS_NULL,
-        ) !== 1) {
+        if ($matches === null) {
             return null;
         }
 

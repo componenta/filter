@@ -152,16 +152,18 @@ final class NumericValueComparator
 
             $number = self::floatString($value);
         } elseif (is_string($value)) {
-            $number = trim($value);
+            $number = $value;
         } else {
             return null;
         }
 
-        if (preg_match(self::PATTERN, $number, $matches, PREG_UNMATCHED_AS_NULL) !== 1) {
+        $matches = self::matchString($number);
+
+        if ($matches === null) {
             return null;
         }
 
-        $sign = str_starts_with($number, '-') ? -1 : 1;
+        $sign = str_starts_with($matches[0], '-') ? -1 : 1;
 
         if ($matches[1] !== null) {
             $integer = $matches[1];
@@ -182,6 +184,20 @@ final class NumericValueComparator
         $order = self::addSmallInteger($scale, strlen($digits));
 
         return [$sign, $digits, $order, $scale];
+    }
+
+    /**
+     * Matches the shared decimal grammar, allowing only PHP numeric whitespace.
+     *
+     * @return array<int, string|null>|null
+     */
+    public static function matchString(string $value): ?array
+    {
+        $value = trim($value, " \t\n\r\v\f");
+
+        return preg_match(self::PATTERN, $value, $matches, PREG_UNMATCHED_AS_NULL) === 1
+            ? $matches
+            : null;
     }
 
     private static function floatString(float $value): string

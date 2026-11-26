@@ -114,7 +114,7 @@ final class DateRangeFilter extends AbstractFilter
             return \DateTimeImmutable::createFromInterface($value);
         }
 
-        $value = trim($value);
+        $value = trim($value, " \t\n\r\v");
 
         if ($value === '' || preg_match(
             self::ABSOLUTE_DATE_PATTERN,
