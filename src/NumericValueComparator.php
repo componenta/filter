@@ -112,6 +112,10 @@ final class NumericValueComparator
      */
     public static function percentageCount(int $count, float $percentage): int
     {
+        if ($count === 0 || $percentage === 0.0) {
+            return 0;
+        }
+
         if ($percentage === floor($percentage)) {
             $integer = (int) $percentage;
 
@@ -120,9 +124,39 @@ final class NumericValueComparator
         }
 
         [, $digits, , $scale] = self::normalize($percentage);
+        [$digits, $scale] = self::stripTrailingZeros($digits, $scale);
+        $shift = $scale[0] * (int) $scale[1] - 2;
+
+        // A positive percentage below one hundred has a negative shift.
+        // Prefer integer arithmetic when both coefficients fit and no
+        // multiplication can overflow, even for a synthetic large Countable.
+        $decimalPlaces = -$shift;
+        $maxDigits = strlen((string) PHP_INT_MAX) - 1;
+
+        if ($decimalPlaces <= $maxDigits && strlen($digits) <= $maxDigits) {
+            $numerator = (int) $digits;
+            $denominator = (int) str_pad('1', $decimalPlaces + 1, '0');
+
+            if ($count <= intdiv(PHP_INT_MAX, $numerator)) {
+                return intdiv($count * $numerator, $denominator);
+            }
+
+            $remainder = $count % $denominator;
+
+            if ($remainder <= intdiv(PHP_INT_MAX, $numerator)) {
+                return intdiv($count, $denominator) * $numerator
+                    + intdiv($remainder * $numerator, $denominator);
+            }
+        }
+
         $left = (string) $count;
         $leftLength = strlen($left);
         $rightLength = strlen($digits);
+
+        if ($leftLength + $rightLength <= $decimalPlaces) {
+            return 0;
+        }
+
         $product = array_fill(0, $leftLength + $rightLength, 0);
 
         for ($i = $leftLength - 1; $i >= 0; $i--) {
@@ -137,7 +171,6 @@ final class NumericValueComparator
         }
 
         $number = ltrim(implode('', $product), '0');
-        $shift = $scale[0] * (int) $scale[1] - 2;
         $length = strlen($number) + $shift;
 
         if ($length <= 0 || $number === '') {

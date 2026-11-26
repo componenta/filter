@@ -46,7 +46,13 @@ final class PercentageFilter extends AbstractCollectionFilter
         }
 
         if (is_array($this->iterable) || $this->iterable instanceof \Countable) {
-            $allowedCount = NumericValueComparator::percentageCount(count($this->iterable), $this->percentage);
+            $count = count($this->iterable);
+
+            if ($count < 0) {
+                throw new \UnexpectedValueException('A countable source cannot have a negative size');
+            }
+
+            $allowedCount = NumericValueComparator::percentageCount($count, $this->percentage);
 
             if ($allowedCount === 0) {
                 return;
