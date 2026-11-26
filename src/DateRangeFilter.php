@@ -25,7 +25,12 @@ final class DateRangeFilter extends AbstractFilter
         iterable $iterable = [],
         ?\DateTimeZone $timezone = null,
     ) {
-        $this->timezone = $timezone ?? new \DateTimeZone(date_default_timezone_get());
+        // DateTimeZone is mutable through its public constructor and can be
+        // subclassed. Capture the native zone, not the caller-owned object
+        // (nor any user-defined clone or timezone method).
+        $this->timezone = $timezone === null
+            ? new \DateTimeZone(date_default_timezone_get())
+            : (new \DateTimeImmutable('@0'))->setTimezone($timezone)->getTimezone();
 
         $min = self::parseAbsoluteDate($minDate, $this->timezone);
         $max = self::parseAbsoluteDate($maxDate, $this->timezone);
@@ -88,7 +93,7 @@ final class DateRangeFilter extends AbstractFilter
 
     public function getTimezone(): \DateTimeZone
     {
-        return $this->timezone;
+        return clone $this->timezone;
     }
 
     public function accept(mixed $value, string|int|null $key = null): bool
