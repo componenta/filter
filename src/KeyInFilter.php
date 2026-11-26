@@ -10,12 +10,21 @@ namespace Componenta\Filter;
 final class KeyInFilter extends AbstractFilter
 {
     private readonly array $allowedKeys;
+    /** @var array<string, true> */
+    private readonly array $index;
 
     public function __construct(
         array $allowedKeys,
         iterable $iterable = []
     ) {
         $this->allowedKeys = KeyList::normalize($allowedKeys, 'allowedKeys');
+        $index = [];
+
+        foreach ($this->allowedKeys as $value) {
+            $index[KeyList::indexKey($value)] = true;
+        }
+
+        $this->index = $index;
         parent::__construct($iterable);
     }
 
@@ -31,6 +40,6 @@ final class KeyInFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return in_array($key, $this->allowedKeys, true);
+        return isset($this->index[KeyList::indexKey($key)]);
     }
 }

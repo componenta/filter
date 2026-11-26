@@ -10,6 +10,8 @@ namespace Componenta\Filter;
 final class FileExtensionFilter extends AbstractFilter
 {
     private readonly array $allowedExtensions;
+    /** @var array<string, true> */
+    private readonly array $index;
 
     public function __construct(
         array $allowedExtensions,
@@ -17,6 +19,13 @@ final class FileExtensionFilter extends AbstractFilter
         iterable $iterable = []
     ) {
         $this->allowedExtensions = StringList::normalize($allowedExtensions, 'allowedExtensions');
+        $index = [];
+
+        foreach ($this->allowedExtensions as $value) {
+            $index['s:' . ($caseSensitive ? $value : strtolower($value))] = true;
+        }
+
+        $this->index = $index;
         parent::__construct($iterable);
     }
 
@@ -54,13 +63,6 @@ final class FileExtensionFilter extends AbstractFilter
             return false;
         }
 
-        if ($this->caseSensitive) {
-            return in_array($extension, $this->allowedExtensions, true);
-        }
-
-        $extension = strtolower($extension);
-        $allowed = array_map(strtolower(...), $this->allowedExtensions);
-
-        return in_array($extension, $allowed, true);
+        return isset($this->index['s:' . ($this->caseSensitive ? $extension : strtolower($extension))]);
     }
 }

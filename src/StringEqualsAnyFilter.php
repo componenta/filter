@@ -10,6 +10,8 @@ namespace Componenta\Filter;
 final class StringEqualsAnyFilter extends AbstractFilter
 {
     private readonly array $allowed;
+    /** @var array<string, true> */
+    private readonly array $index;
 
     public function __construct(
         array $allowed,
@@ -17,6 +19,13 @@ final class StringEqualsAnyFilter extends AbstractFilter
         iterable $iterable = []
     ) {
         $this->allowed = StringList::normalize($allowed, 'allowed');
+        $index = [];
+
+        foreach ($this->allowed as $value) {
+            $index['s:' . ($caseSensitive ? $value : strtolower($value))] = true;
+        }
+
+        $this->index = $index;
         parent::__construct($iterable);
     }
 
@@ -48,16 +57,6 @@ final class StringEqualsAnyFilter extends AbstractFilter
             return false;
         }
 
-        if ($this->caseSensitive) {
-            return in_array($stringValue, $this->allowed, true);
-        }
-
-        foreach ($this->allowed as $allowed) {
-            if (strcasecmp($stringValue, $allowed) === 0) {
-                return true;
-            }
-        }
-
-        return false;
+        return isset($this->index['s:' . ($this->caseSensitive ? $stringValue : strtolower($stringValue))]);
     }
 }

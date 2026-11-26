@@ -10,12 +10,21 @@ namespace Componenta\Filter;
 final class KeyExcludeFilter extends AbstractFilter
 {
     private readonly array $excludedKeys;
+    /** @var array<string, true> */
+    private readonly array $index;
 
     public function __construct(
         array $excludedKeys,
         iterable $iterable = []
     ) {
         $this->excludedKeys = KeyList::normalize($excludedKeys, 'excludedKeys');
+        $index = [];
+
+        foreach ($this->excludedKeys as $value) {
+            $index[KeyList::indexKey($value)] = true;
+        }
+
+        $this->index = $index;
         parent::__construct($iterable);
     }
 
@@ -31,6 +40,6 @@ final class KeyExcludeFilter extends AbstractFilter
 
     public function accept(mixed $value, string|int|null $key = null): bool
     {
-        return !in_array($key, $this->excludedKeys, true);
+        return !isset($this->index[KeyList::indexKey($key)]);
     }
 }

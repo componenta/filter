@@ -30,4 +30,12 @@ final class KeyList
 
         return $normalized;
     }
+    public static function indexKey(string|int|null $key): string
+    {
+        return match (true) {
+            $key === null => 'n:',
+            is_int($key) => 'i:' . $key,
+            default => 's:' . $key,
+        };
+    }
 }
